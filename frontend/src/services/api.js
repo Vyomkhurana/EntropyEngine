@@ -42,4 +42,25 @@ export async function fetchHealth() {
   return data;
 }
 
+// ── Business / SaaS endpoints (mock) ──
+export async function fetchFactories(params = {}) {
+  const { data } = await api.get("/factories", { params });
+  return data;
+}
+
+export async function fetchFactory(factoryId) {
+  const { data } = await api.get(`/factory/${factoryId}`);
+  return data;
+}
+
+export async function fetchBusinessOverview() {
+  const { data } = await api.get(`/business/overview`);
+  return data;
+}
+
+export async function fetchRevenue(months = 12) {
+  const { data } = await api.get(`/revenue?months=${months}`);
+  return data;
+}
+
 export default api;

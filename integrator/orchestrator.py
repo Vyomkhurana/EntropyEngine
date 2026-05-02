@@ -30,6 +30,9 @@ import httpx
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import List, Optional, Dict
+import random
+import datetime
 
 from config import (
     CONTROL_INTERVAL,
@@ -414,6 +417,156 @@ async def get_full_state():
         "uptime": round(time.time() - orchestrator.start_time, 1),
         "tick_count": orchestrator.tick_count,
     }
+
+
+    # ── Business / SaaS demo endpoints (mock data for multi-factory) ──
+
+
+    class FactorySummary(BaseModel):
+        id: int
+        name: str
+        location: str
+        status: str
+        efficiency_pct: float
+        co2_tons: float
+        monthly_savings: float
+        our_revenue: float
+
+
+    class BusinessOverview(BaseModel):
+        total_revenue: float
+        mrr: float
+        revenue_split: Dict[str, float]
+        total_factories: int
+        global_co2_tons: float
+        total_energy_kwh: float
+
+
+def _generate_mock_factories(n: int = 4):
+    factories = []
+    for i in range(1, n + 1):
+        energy_saved = random.randint(8000, 60000)  # kWh/month
+        cost_per_kwh = random.choice([6.0, 7.5, 8.5, 9.0])  # ₹/kWh
+        savings = energy_saved * cost_per_kwh
+        our_cut = round(0.2 * savings, 2)
+        co2_tons = round(energy_saved * 0.0007, 2)  # ~0.7 kg CO2 per kWh
+        efficiency = round(random.uniform(72.0, 95.0), 1)
+        status = random.choice(["Active", "Warning", "Optimized"])
+        factories.append(
+            {
+                "id": i,
+                "name": f"Plant {i}",
+                "location": random.choice(["Pune, IN", "Chennai, IN", "Bengaluru, IN", "Mumbai, IN"]),
+                "status": status,
+                "efficiency_pct": efficiency,
+                "co2_tons": co2_tons,
+                "monthly_savings": round(savings, 2),
+                "our_revenue": our_cut,
+            }
+        )
+    return factories
+
+
+@app.get("/api/factories", summary="List factories", tags=["Business"])
+async def list_factories(q: Optional[str] = None, status: Optional[str] = None):
+    """Return a paginated list / search of mock factories for demo purposes."""
+    items = _generate_mock_factories(5)
+    if q:
+        items = [f for f in items if q.lower() in f["name"].lower() or q.lower() in f["location"].lower()]
+    if status:
+        items = [f for f in items if f["status"].lower() == status.lower()]
+    return items
+
+
+@app.get("/api/factory/{factory_id}", summary="Factory detail", tags=["Business"])
+async def get_factory(factory_id: int):
+    """Return detailed mock info for a single factory (sustainability + revenue + AI insights)."""
+    items = _generate_mock_factories(5)
+    match = next((f for f in items if f["id"] == factory_id), None)
+    if not match:
+        return {"error": "factory not found"}
+
+    # Mock ROI & AI insights
+    baseline_power = random.uniform(220.0, 320.0)  # kW baseline
+    optimized_power = baseline_power * (1 + random.uniform(0.05, 0.22))
+    energy_saved_kwh = max(0, (optimized_power - baseline_power) * 24 * 30)  # monthly
+    savings = match["monthly_savings"]
+    our_cut = match["our_revenue"]
+    roi = round((savings - 20000) / 20000 * 100, 1)  # mock: compare vs a notional investment
+
+    insights = [
+        "Valve optimization increased output by 12–20% over baseline",
+        "Pressure occasionally nears threshold; safety override applied 3 times this month",
+    ]
+
+    return {
+        **match,
+        "baseline_power_kW": round(baseline_power, 1),
+        "optimized_power_kW": round(optimized_power, 1),
+        "energy_saved_kwh": int(energy_saved_kwh),
+        "savings": savings,
+        "our_cut": our_cut,
+        "roi_pct": roi,
+        "co2_reduction_tons": match["co2_tons"],
+        "ai_insights": insights,
+    }
+
+
+@app.get("/api/business/overview", summary="Business overview", tags=["Business"])
+async def business_overview():
+    """Return aggregate revenue + sustainability metrics for the demo SaaS platform."""
+    items = _generate_mock_factories(5)
+    total_factories = len(items)
+    total_energy = sum(f["monthly_savings"] / random.choice([6.0, 7.5, 8.5]) for f in items)
+    total_co2 = sum(f["co2_tons"] for f in items)
+    performance_rev = sum(f["our_revenue"] for f in items)
+    saas_rev = total_factories * 10000  # mock fixed subscription ₹10k/month
+    enterprise_rev = sum(random.choice([0, 50000, 150000]) for _ in items)
+    total_revenue = round(performance_rev + saas_rev + enterprise_rev, 2)
+    mrr = round(performance_rev + saas_rev, 2)
+
+    revenue_trend = []
+    savings_trend = []
+    base_revenue = total_revenue * 0.72
+    base_savings = total_energy * 0.8
+    for i in range(12):
+        month = (datetime.date.today() - datetime.timedelta(days=30 * (11 - i))).strftime("%Y-%m")
+        base_revenue *= 1 + random.uniform(0.01, 0.08)
+        base_savings *= 1 + random.uniform(0.00, 0.06)
+        revenue_trend.append({"month": month, "value": round(base_revenue, 2)})
+        savings_trend.append({"month": month, "value": round(base_savings, 2)})
+
+    return {
+        "total_revenue": total_revenue,
+        "mrr": mrr,
+        "revenue_split": {
+            "performance_based": round(performance_rev, 2),
+            "saaS": round(saas_rev, 2),
+            "enterprise": round(enterprise_rev, 2),
+        },
+        "total_factories": total_factories,
+        "global_co2_tons": round(total_co2, 2),
+        "total_energy_kwh": int(total_energy),
+        "monthly_revenue": round(mrr, 2),
+        "total_energy_saved_kwh": int(total_energy),
+        "co2_reduced_tons": round(total_co2, 2),
+        "revenue_trend": revenue_trend,
+        "savings_trend": savings_trend,
+    }
+
+
+@app.get("/api/revenue", summary="Revenue time series", tags=["Business"])
+async def revenue_timeseries(months: int = Query(default=12, ge=3, le=36)):
+    """Return mock monthly revenue timeseries for charting."""
+    now = datetime.date.today()
+    data = []
+    base = 300000
+    for i in range(months):
+        month = (now - datetime.timedelta(days=30 * (months - i - 1))).strftime("%Y-%m")
+        growth = base * (1 + random.uniform(-0.05, 0.12))
+        base = growth
+        data.append({"month": month, "revenue": round(growth, 2)})
+    return data
 
 
 @app.post("/api/ai/toggle", summary="Toggle AI control", tags=["AI"])

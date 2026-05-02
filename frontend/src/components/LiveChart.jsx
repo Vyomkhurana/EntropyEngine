@@ -25,6 +25,7 @@ export default function LiveChart({
   unit = "",
   height = 180,
   area = false,
+  xKey = "tick",
 }) {
   const ChartComp = area ? AreaChart : LineChart;
   const LineComp  = area ? Area : Line;
@@ -38,7 +39,7 @@ export default function LiveChart({
         <ChartComp data={data} margin={{ top: 4, right: 8, bottom: 0, left: -10 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={THEME.chart.grid} opacity={0.4} />
           <XAxis
-            dataKey="tick"
+            dataKey={xKey}
             stroke="#475569"
             fontSize={10}
             tickLine={false}
