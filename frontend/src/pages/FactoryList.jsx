@@ -9,55 +9,76 @@ export default function FactoryList() {
   return (
     <div className="max-w-7xl mx-auto">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-8 pt-2">
         <h1 className="text-4xl font-bold text-white mb-2">Factories</h1>
-        <p className="text-slate-400 text-base">Connected client factories and their performance metrics</p>
+        <p className="text-gray-400 text-base">
+          View and manage all connected factory clients
+        </p>
       </div>
 
       {loading ? (
-        <div className="text-slate-400">Loading factories…</div>
+        <div className="text-gray-400">Loading factories…</div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="space-y-3">
           {factories.map((factory, index) => (
             <motion.button
               key={factory.id}
-              initial={{ opacity: 0, y: 12 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
               onClick={() => navigate(`/factory/${factory.id}`)}
-              className="text-left rounded-lg border border-slate-800 bg-slate-900/50 backdrop-blur-sm p-6 hover:border-slate-700 hover:bg-slate-900/70 transition-all duration-200 group cursor-pointer"
+              className="w-full text-left rounded-lg border border-gray-700 bg-gray-800/40 hover:bg-gray-800/60 hover:border-gray-600 transition-all duration-200 p-6 group"
             >
-              {/* Factory Header */}
-              <div className="mb-4">
-                <div className="flex items-start justify-between gap-3 mb-2">
-                  <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">{factory.name}</h3>
-                  <span className="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-widest bg-slate-800/60 border border-slate-700 text-slate-300">
-                    {factory.status}
-                  </span>
+              <div className="grid grid-cols-12 gap-6 items-center">
+                {/* Factory Name & Location */}
+                <div className="col-span-12 sm:col-span-4">
+                  <h3 className="text-base font-semibold text-white group-hover:text-blue-400 transition-colors mb-1">
+                    {factory.name}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {factory.location}
+                  </p>
                 </div>
-                <p className="text-sm text-slate-500">{factory.location}</p>
-              </div>
 
-              {/* Key Metrics - Clean Grid */}
-              <div className="space-y-3 pt-4 border-t border-slate-800/50">
-                <MetricRow label="Efficiency" value={`${factory.efficiency_pct}%`} accent="text-cyan-500" />
-                <MetricRow label="Monthly Savings" value={`₹${Number(factory.monthly_savings).toLocaleString("en-IN")}`} accent="text-green-500" />
-                <MetricRow label="Our Revenue" value={`₹${Number(factory.our_revenue).toLocaleString("en-IN")}`} accent="text-blue-500" />
-                <MetricRow label="CO2 Reduced" value={`${factory.co2_tons} tons`} accent="text-orange-500" />
+                {/* Status Badge */}
+                <div className="col-span-12 sm:col-span-2">
+                  <div className="inline-flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${
+                      factory.status === "Optimized" ? "bg-green-500" : 
+                      factory.status === "Warning" ? "bg-amber-500" : 
+                      "bg-blue-500"
+                    }`} />
+                    <span className="text-xs font-medium text-gray-300">
+                      {factory.status}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Key Metrics - Efficiency */}
+                <div className="col-span-6 sm:col-span-2">
+                  <div className="text-xs text-gray-600 mb-1 uppercase tracking-widest">Efficiency</div>
+                  <div className="text-lg font-bold text-blue-400">
+                    {factory.efficiency_pct}%
+                  </div>
+                </div>
+
+                {/* Key Metrics - Revenue */}
+                <div className="col-span-6 sm:col-span-2">
+                  <div className="text-xs text-gray-600 mb-1 uppercase tracking-widest">Our Revenue</div>
+                  <div className="text-lg font-bold text-green-400">
+                    ₹{(factory.our_revenue / 1000).toFixed(0)}k
+                  </div>
+                </div>
+
+                {/* Arrow indicator */}
+                <div className="col-span-12 sm:col-span-2 text-right">
+                  <span className="text-gray-600 group-hover:text-gray-400 transition-colors">→</span>
+                </div>
               </div>
             </motion.button>
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-function MetricRow({ label, value, accent }) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-sm text-slate-500">{label}</span>
-      <span className={`font-semibold text-sm ${accent}`}>{value}</span>
     </div>
   );
 }

@@ -15,62 +15,62 @@ export default function StatusBar({ state, connected }) {
   };
 
   const stateColor = {
-    IDLE:     "text-slate-400",
+    IDLE:     "text-gray-500",
     ACTIVE:   "text-blue-400",
     FALLBACK: "text-amber-400",
   };
 
   const safetyColor = {
-    NORMAL:   "text-emerald-400",
+    NORMAL:   "text-green-400",
     WARNING:  "text-amber-400",
     CRITICAL: "text-red-400",
   };
 
   const safetyDot = {
-    NORMAL:   "bg-emerald-400",
+    NORMAL:   "bg-green-400",
     WARNING:  "bg-amber-400",
     CRITICAL: "bg-red-400",
   };
 
   return (
-    <div className="flex items-center justify-between px-6 py-2.5 border-b border-slate-800/60 bg-navy-950/90 backdrop-blur-xl sticky top-0 z-50">
+    <div className="flex items-center justify-between px-6 py-3 border-b border-gray-700 bg-gray-900/50 backdrop-blur-sm sticky top-0 z-50">
       {/* Left: Brand */}
       <div className="flex items-center gap-3">
-        <LogoMark size={30} />
+        <LogoMark size={28} />
         <div className="leading-tight">
-          <h1 className="text-[13px] font-bold text-white tracking-tight">
+          <h1 className="text-sm font-bold text-white tracking-tight">
             ENTROPY <span className="text-blue-400">ENGINE</span>
           </h1>
-          <p className="text-[9px] text-slate-500 tracking-wide uppercase">Industrial AI Optimizer</p>
+          <p className="text-xs text-gray-600 tracking-widest uppercase">Industrial AI</p>
         </div>
       </div>
 
-      {/* Center: Status pills */}
+      {/* Center: Status indicators */}
       <div className="flex items-center gap-2">
         <StatusPill label="AI" value={aiState} color={stateColor[aiState]} />
-        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800/60 border border-slate-700/40">
+        <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-gray-800/40 border border-gray-700">
           <span className={`w-1.5 h-1.5 rounded-full ${safetyDot[safety]}`} />
-          <span className="text-[10px] text-slate-500 uppercase">Safety</span>
-          <span className={`text-xs font-bold font-mono-num ${safetyColor[safety]}`}>{safety}</span>
+          <span className="text-xs text-gray-600 uppercase">Safety</span>
+          <span className={`text-xs font-bold ${safetyColor[safety]}`}>{safety}</span>
         </div>
         <StatusPill
           label="Conf"
           value={`${(conf * 100).toFixed(0)}%`}
-          color={conf > 0.5 ? "text-emerald-400" : conf > 0.3 ? "text-amber-400" : "text-slate-400"}
+          color={conf > 0.5 ? "text-green-400" : conf > 0.3 ? "text-amber-400" : "text-gray-500"}
         />
-        <StatusPill label="Tick" value={tick} color="text-slate-300" />
+        <StatusPill label="Tick" value={tick} color="text-gray-400" />
       </div>
 
-      {/* Right: Connection + uptime */}
+      {/* Right: Connection status */}
       <div className="flex items-center gap-3">
-        <span className="text-[10px] text-slate-500 font-mono-num">{formatUptime(uptime)}</span>
+        <span className="text-xs text-gray-600 font-mono">{formatUptime(uptime)}</span>
         <div className="flex items-center gap-1.5">
           <motion.div
-            className={`w-2 h-2 rounded-full ${connected ? "bg-emerald-400" : "bg-red-400"}`}
+            className={`w-2 h-2 rounded-full ${connected ? "bg-green-400" : "bg-red-400"}`}
             animate={{ opacity: [1, 0.4, 1] }}
             transition={{ repeat: Infinity, duration: 2 }}
           />
-          <span className="text-[10px] text-slate-500">{connected ? "Live" : "Offline"}</span>
+          <span className="text-xs text-gray-600">{connected ? "Live" : "Offline"}</span>
         </div>
       </div>
     </div>
@@ -79,9 +79,9 @@ export default function StatusBar({ state, connected }) {
 
 function StatusPill({ label, value, color }) {
   return (
-    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800/60 border border-slate-700/40">
-      <span className="text-[10px] text-slate-500 uppercase">{label}</span>
-      <span className={`text-xs font-bold font-mono-num ${color}`}>{value}</span>
+    <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-gray-800/40 border border-gray-700">
+      <span className="text-xs text-gray-600 uppercase">{label}</span>
+      <span className={`text-xs font-bold ${color}`}>{value}</span>
     </div>
   );
 }

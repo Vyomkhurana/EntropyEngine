@@ -4,14 +4,13 @@ import {
 } from "recharts";
 import { THEME } from "../constants/theme";
 
-function CustomTooltip({ active, payload, label, unit, name }) {
+function CustomTooltip({ active, payload, unit }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="glass-card px-3 py-2 text-xs">
-      <p className="text-slate-500 mb-1">Tick {label}</p>
+    <div className="rounded-lg bg-gray-900 border border-gray-700 px-3 py-2 text-xs">
       {payload.map((p, i) => (
-        <p key={i} style={{ color: p.stroke || p.color }}>
-          {p.name}: <span className="font-mono-num font-semibold">{Number(p.value).toFixed(2)}</span> {unit}
+        <p key={i} style={{ color: p.stroke || p.color }} className="font-semibold">
+          {p.name}: {Number(p.value).toFixed(1)} {unit}
         </p>
       ))}
     </div>
@@ -20,10 +19,10 @@ function CustomTooltip({ active, payload, label, unit, name }) {
 
 export default function LiveChart({
   data,
-  lines = [],        // [{ key, color, name }]
+  lines = [],
   label,
   unit = "",
-  height = 180,
+  height = 200,
   area = false,
   xKey = "tick",
 }) {
@@ -31,21 +30,27 @@ export default function LiveChart({
   const LineComp  = area ? Area : Line;
 
   return (
-    <div className="glass-card p-4">
-      <h3 className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-3">
-        {label}
-      </h3>
+    <>
       <ResponsiveContainer width="100%" height={height}>
-        <ChartComp data={data} margin={{ top: 4, right: 8, bottom: 0, left: -10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke={THEME.chart.grid} opacity={0.4} />
+        <ChartComp data={data} margin={{ top: 8, right: 12, bottom: 0, left: -8 }}>
+          <CartesianGrid 
+            strokeDasharray="3 3" 
+            stroke={THEME.chart.grid} 
+            opacity={0.15}
+          />
           <XAxis
             dataKey={xKey}
-            stroke="#475569"
-            fontSize={10}
+            stroke={THEME.colors.textDim}
+            fontSize={11}
             tickLine={false}
             axisLine={false}
           />
-          <YAxis stroke="#475569" fontSize={10} tickLine={false} axisLine={false} />
+          <YAxis 
+            stroke={THEME.colors.textDim} 
+            fontSize={11} 
+            tickLine={false} 
+            axisLine={false}
+          />
           <Tooltip content={<CustomTooltip unit={unit} />} />
           {lines.map(({ key, color, name }) =>
             area ? (
@@ -55,8 +60,8 @@ export default function LiveChart({
                 dataKey={key}
                 stroke={color}
                 fill={color}
-                fillOpacity={0.08}
-                strokeWidth={2}
+                fillOpacity={0.12}
+                strokeWidth={2.5}
                 dot={false}
                 name={name || key}
                 animationDuration={300}
@@ -67,7 +72,7 @@ export default function LiveChart({
                 type="monotone"
                 dataKey={key}
                 stroke={color}
-                strokeWidth={2}
+                strokeWidth={2.5}
                 dot={false}
                 name={name || key}
                 animationDuration={300}
@@ -76,6 +81,6 @@ export default function LiveChart({
           )}
         </ChartComp>
       </ResponsiveContainer>
-    </div>
+    </>
   );
 }

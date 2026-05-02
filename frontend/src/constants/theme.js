@@ -1,26 +1,47 @@
-/* ── Design tokens ── */
+/* ── Professional SaaS Design System ── */
 export const THEME = {
   colors: {
-    background: "#0a0e1a",
-    surface: "#111827",
-    surfaceHover: "#1e293b",
-    border: "#1e293b",
-    primary: "#3b82f6",
-    primaryGlow: "#3b82f640",
-    success: "#10b981",
-    warning: "#f59e0b",
-    danger: "#ef4444",
-    text: "#f1f5f9",
-    textMuted: "#94a3b8",
-    textDim: "#475569",
+    // Neutral dark background
+    background: "#0F172A",
+    backgroundLight: "#1A202C",
+    surface: "#1A202C",
+    surfaceHover: "#2D3748",
+    
+    // Borders - subtle grey
+    border: "#2D3748",
+    borderLight: "#4A5568",
+    
+    // Primary - blue (only for key highlights)
+    primary: "#3B82F6",
+    primaryLight: "#60A5FA",
+    primaryDark: "#1E40AF",
+    
+    // Success - green
+    success: "#10B981",
+    successLight: "#6EE7B7",
+    
+    // Warning - amber
+    warning: "#F59E0B",
+    warningLight: "#FBBF24",
+    
+    // Danger - red
+    danger: "#EF4444",
+    
+    // Text colors
+    text: "#F7FAFC",          // Primary text - almost white
+    textSecondary: "#CBD5E0", // Secondary text
+    textMuted: "#A0AEC0",     // Muted text
+    textDim: "#718096",       // Very muted
   },
+  
+  // Chart colors - professional palette
   chart: {
-    power: "#3b82f6",
-    temperature: "#f59e0b",
-    pressure: "#06b6d4",
-    valve: "#10b981",
-    predicted: "#a78bfa",
-    grid: "#334155",
-    tooltip: "#1e293b",
+    power: "#3B82F6",      // Blue
+    temperature: "#F59E0B", // Amber
+    pressure: "#06B6D4",    // Cyan
+    valve: "#10B981",      // Green
+    predicted: "#8B5CF6",  // Purple
+    grid: "#4A5568",
+    tooltip: "#1A202C",
   },
 };
