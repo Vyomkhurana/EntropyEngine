@@ -2,11 +2,11 @@ import { motion } from "framer-motion";
 import { IconAlertTriangle } from "./Icons";
 
 const COLOR_MAP = {
-  blue:    { text: "text-blue-500",    iconBg: "bg-blue-500/10", iconText: "text-blue-500" },
-  orange:  { text: "text-orange-500",  iconBg: "bg-orange-500/10", iconText: "text-orange-500" },
-  cyan:    { text: "text-cyan-500",    iconBg: "bg-cyan-500/10", iconText: "text-cyan-500" },
-  emerald: { text: "text-emerald-500", iconBg: "bg-emerald-500/10", iconText: "text-emerald-500" },
-  purple:  { text: "text-purple-500",  iconBg: "bg-purple-500/10", iconText: "text-purple-500" },
+  blue:    { text: "text-blue-600",    iconBg: "bg-blue-50", iconText: "text-blue-600" },
+  orange:  { text: "text-orange-600",  iconBg: "bg-orange-50", iconText: "text-orange-600" },
+  cyan:    { text: "text-cyan-600",    iconBg: "bg-cyan-50", iconText: "text-cyan-600" },
+  emerald: { text: "text-green-600", iconBg: "bg-green-50", iconText: "text-green-600" },
+  purple:  { text: "text-purple-600",  iconBg: "bg-purple-50", iconText: "text-purple-600" },
 };
 
 export default function KPICard({ label, value, unit, icon: Icon, color = "blue", alert, sub }) {
@@ -14,12 +14,13 @@ export default function KPICard({ label, value, unit, icon: Icon, color = "blue"
 
   return (
     <motion.div
-      className="rounded-lg border border-slate-800 bg-slate-900/50 backdrop-blur-sm p-5 hover:border-slate-700 transition-colors duration-200"
+      className="rounded-lg border p-5 transition-colors duration-200"
+      style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}
       whileHover={{ y: -2 }}
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
     >
       <div className="flex items-center justify-between mb-3">
-        <span className="text-slate-500 text-xs font-semibold uppercase tracking-widest">{label}</span>
+        <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#64748B" }}>{label}</span>
         {Icon && (
           <div className={`w-8 h-8 rounded-lg ${c.iconBg} flex items-center justify-center ${c.iconText}`}>
             <Icon className="w-4 h-4" />
@@ -37,16 +38,16 @@ export default function KPICard({ label, value, unit, icon: Icon, color = "blue"
         <span className={`text-3xl font-bold ${c.text}`}>
           {typeof value === "number" ? value.toFixed(1) : value ?? "—"}
         </span>
-        <span className="text-slate-500 text-sm">{unit}</span>
+        <span className="text-sm" style={{ color: "#64748B" }}>{unit}</span>
       </motion.div>
 
-      {sub && <p className="mt-2 text-xs text-slate-500">{sub}</p>}
+      {sub && <p className="mt-2 text-xs" style={{ color: "#64748B" }}>{sub}</p>}
 
       {alert && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="mt-3 flex items-center gap-1.5 text-xs text-orange-500 font-medium"
+          className="mt-3 flex items-center gap-1.5 text-xs font-medium text-orange-600"
         >
           <IconAlertTriangle className="w-3 h-3" />
           <span>{alert}</span>

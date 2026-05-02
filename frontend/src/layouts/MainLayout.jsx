@@ -4,7 +4,7 @@ import Sidebar from "../components/Sidebar";
 
 export default function MainLayout({ state, connected }) {
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className="min-h-screen" style={{ backgroundColor: "#F8FAFC" }}>
       <StatusBar state={state} connected={connected} />
       <div className="flex flex-col lg:flex-row min-h-[calc(100vh-56px)]">
         <Sidebar />

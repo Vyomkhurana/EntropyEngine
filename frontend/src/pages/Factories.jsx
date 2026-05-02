@@ -25,11 +25,11 @@ export default function Factories() {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="font-medium">{f.name}</div>
-                    <div className="text-[12px] text-slate-500">{f.location}</div>
+                    <div className="text-[12px]" style={{ color: "#64748B" }}>{f.location}</div>
                   </div>
                   <div className="text-sm font-mono-num">₹{f.our_revenue}</div>
                 </div>
-                <div className="mt-3 text-[13px] text-slate-400">CO₂: {f.co2_tons} t · Efficiency: {f.efficiency_pct}%</div>
+                <div className="mt-3 text-[13px]" style={{ color: "#64748B" }}>CO₂: {f.co2_tons} t · Efficiency: {f.efficiency_pct}%</div>
               </div>
             ))}
           </div>
@@ -39,7 +39,7 @@ export default function Factories() {
       <aside>
         <div className="glass-card p-4">
           <h3 className="font-semibold mb-2">Factory Detail</h3>
-          {selected ? <FactoryDetail factoryId={selected} /> : <div className="text-slate-500 text-sm">Select a factory to view details</div>}
+          {selected ? <FactoryDetail factoryId={selected} /> : <div className="text-sm" style={{ color: "#64748B" }}>Select a factory to view details</div>}
         </div>
       </aside>
     </div>

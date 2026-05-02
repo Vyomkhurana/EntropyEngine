@@ -2,22 +2,20 @@ import { NavLink } from "react-router-dom";
 import { motion } from "framer-motion";
 
 const navItems = [
-  { to: "/dashboard", label: "Dashboard", desc: "Overview" },
-  { to: "/factories", label: "Factories", desc: "Clients" },
-  { to: "/analytics", label: "Analytics", desc: "Insights" },
+  { to: "/dashboard", label: "Dashboard", desc: "Business overview" },
+  { to: "/factories", label: "Factories", desc: "Connected clients" },
+  { to: "/analytics", label: "Analytics", desc: "Coming soon" },
 ];
 
 export default function Sidebar() {
   return (
-    <aside className="w-full lg:w-64 shrink-0 border-b lg:border-b-0 lg:border-r border-gray-700 bg-gray-900/50 backdrop-blur-sm lg:min-h-[calc(100vh-56px)] lg:sticky lg:top-[56px]">
-      <div className="flex flex-col w-full p-6 gap-8">
+    <aside className="w-full lg:w-72 shrink-0 border-b lg:border-b-0 lg:border-r lg:min-h-[calc(100vh-56px)] lg:sticky lg:top-[56px]" style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0" }}>
+      <div className="flex flex-col w-full p-6 gap-6">
         {/* Branding */}
         <div>
-          <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">
-            Entropy Engine
-          </h2>
-          <p className="text-xs text-gray-600 leading-relaxed">
-            Industrial AI optimization platform
+          <h2 className="text-sm font-bold uppercase tracking-widest" style={{ color: "#0F172A" }}>Entropy Engine</h2>
+          <p className="mt-2 text-xs leading-relaxed" style={{ color: "#64748B" }}>
+            Industrial AI optimization platform for multi-factory operations.
           </p>
         </div>
 
@@ -31,32 +29,35 @@ export default function Sidebar() {
                 [
                   "block rounded-lg px-4 py-3 border transition-all duration-200",
                   isActive
-                    ? "bg-blue-500/10 border-blue-500 text-blue-300"
-                    : "bg-gray-800/40 border-gray-700 text-gray-500 hover:text-gray-300 hover:bg-gray-800/60 hover:border-gray-600",
+                    ? "border-green-600 text-green-700"
+                    : "text-slate-600 hover:text-slate-800",
                 ].join(" ")
               }
+              style={({ isActive }) => ({
+                backgroundColor: isActive ? "#F0FDF4" : "#FFFFFF",
+                borderColor: isActive ? "#16A34A" : "#E2E8F0",
+              })}
             >
-              <div className="text-sm font-medium">{item.label}</div>
-              <div className="text-xs text-gray-600 mt-0.5">{item.desc}</div>
+              <div className="text-sm font-semibold">{item.label}</div>
+              <div className="text-xs mt-0.5" style={{ color: "#64748B" }}>{item.desc}</div>
             </NavLink>
           ))}
         </nav>
 
-        {/* Footer */}
+        {/* Footer Info */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.4, delay: 0.2 }}
-          className="mt-auto pt-6 border-t border-gray-700/50"
+          className="mt-auto pt-6 border-t"
+          style={{ borderColor: "#E2E8F0" }}
         >
-          <div className="text-xs uppercase tracking-widest text-gray-600 mb-3">
-            Navigation
-          </div>
-          <div className="space-y-2 text-xs text-gray-600">
-            <div>1. Landing</div>
-            <div>2. Dashboard</div>
-            <div>3. Factories</div>
-            <div>4. Factory Detail</div>
+          <div className="text-xs uppercase tracking-widest mb-3" style={{ color: "#64748B" }}>Navigation Flow</div>
+          <div className="space-y-2 text-xs" style={{ color: "#64748B" }}>
+            <div className="flex items-center gap-2"><span style={{ color: "#64748B" }}>1</span> Landing</div>
+            <div className="flex items-center gap-2"><span style={{ color: "#64748B" }}>2</span> Dashboard</div>
+            <div className="flex items-center gap-2"><span style={{ color: "#64748B" }}>3</span> Factories</div>
+            <div className="flex items-center gap-2"><span style={{ color: "#64748B" }}>4</span> Factory Detail</div>
           </div>
         </motion.div>
       </div>

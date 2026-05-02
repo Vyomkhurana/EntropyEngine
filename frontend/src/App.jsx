@@ -3,7 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useMetrics } from "./hooks/useMetrics";
 import { FactoriesProvider } from "./context/FactoriesContext";
 import LandingPage from "./pages/LandingPage";
-import CentralBusinessDashboard from "./pages/CentralBusinessDashboard";
+import BusinessDashboard from "./pages/BusinessDashboard";
 import FactoryList from "./pages/FactoryList";
 import FactoryDetail from "./pages/FactoryDetail";
 import Analytics from "./pages/Analytics";
@@ -21,7 +21,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<LandingPage connected={connected} metrics={metrics} aiActive={effectiveAI} />} />
         <Route element={<MainLayout state={state} connected={connected} />}>
-          <Route path="/dashboard" element={<CentralBusinessDashboard />} />
+          <Route path="/dashboard" element={<BusinessDashboard />} />
           <Route path="/factories" element={<FactoryList />} />
           <Route path="/factory/:id" element={<FactoryDetail />} />
           <Route path="/analytics" element={<Analytics />} />

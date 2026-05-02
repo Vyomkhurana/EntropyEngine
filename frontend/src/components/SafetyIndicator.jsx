@@ -28,7 +28,7 @@ export default function SafetyIndicator({ level = "NORMAL", overrides = 0, press
         <MetricRow label="Pressure Headroom" value={pressureHeadroom != null ? `${pressureHeadroom.toFixed(2)} bar` : "—"} />
         <MetricRow label="Temp Headroom" value={tempHeadroom != null ? `${tempHeadroom.toFixed(0)} °C` : "—"} />
         <div>
-          <p className="text-slate-500">Safety Overrides</p>
+          <p style={{ color: "#64748B" }}>Safety Overrides</p>
           <p className={`font-mono-num font-semibold ${overrides > 0 ? "text-amber-400" : "text-emerald-400"}`}>
             {overrides}
           </p>
@@ -41,8 +41,8 @@ export default function SafetyIndicator({ level = "NORMAL", overrides = 0, press
 function MetricRow({ label, value }) {
   return (
     <div>
-      <p className="text-slate-500">{label}</p>
-      <p className="font-mono-num text-slate-300 font-semibold">{value}</p>
+      <p style={{ color: "#64748B" }}>{label}</p>
+      <p className="font-mono-num font-semibold" style={{ color: "#0F172A" }}>{value}</p>
     </div>
   );
 }

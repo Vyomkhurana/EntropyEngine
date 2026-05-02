@@ -4,13 +4,14 @@ import {
 } from "recharts";
 import { THEME } from "../constants/theme";
 
-function CustomTooltip({ active, payload, unit }) {
+function CustomTooltip({ active, payload, label, unit, name }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg bg-gray-900 border border-gray-700 px-3 py-2 text-xs">
+    <div className="px-3 py-2 text-xs rounded-lg" style={{ backgroundColor: THEME.chart.tooltip, border: `1px solid ${THEME.colors.border}` }}>
+      <p className="mb-1" style={{ color: THEME.colors.textMuted }}>Tick {label}</p>
       {payload.map((p, i) => (
-        <p key={i} style={{ color: p.stroke || p.color }} className="font-semibold">
-          {p.name}: {Number(p.value).toFixed(1)} {unit}
+        <p key={i} style={{ color: p.stroke || p.color }}>
+          {p.name}: <span className="font-mono-num font-semibold">{Number(p.value).toFixed(2)}</span> {unit}
         </p>
       ))}
     </div>
@@ -19,10 +20,10 @@ function CustomTooltip({ active, payload, unit }) {
 
 export default function LiveChart({
   data,
-  lines = [],
+  lines = [],        // [{ key, color, name }]
   label,
   unit = "",
-  height = 200,
+  height = 180,
   area = false,
   xKey = "tick",
 }) {
@@ -30,27 +31,21 @@ export default function LiveChart({
   const LineComp  = area ? Area : Line;
 
   return (
-    <>
+    <div className="p-4 rounded-lg" style={{ backgroundColor: THEME.colors.surface, border: `1px solid ${THEME.colors.border}` }}>
+      <h3 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: THEME.colors.textMuted }}>
+        {label}
+      </h3>
       <ResponsiveContainer width="100%" height={height}>
-        <ChartComp data={data} margin={{ top: 8, right: 12, bottom: 0, left: -8 }}>
-          <CartesianGrid 
-            strokeDasharray="3 3" 
-            stroke={THEME.chart.grid} 
-            opacity={0.15}
-          />
+        <ChartComp data={data} margin={{ top: 4, right: 8, bottom: 0, left: -10 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={THEME.chart.grid} opacity={0.8} />
           <XAxis
             dataKey={xKey}
-            stroke={THEME.colors.textDim}
-            fontSize={11}
+            stroke={THEME.colors.textMuted}
+            fontSize={10}
             tickLine={false}
             axisLine={false}
           />
-          <YAxis 
-            stroke={THEME.colors.textDim} 
-            fontSize={11} 
-            tickLine={false} 
-            axisLine={false}
-          />
+          <YAxis stroke={THEME.colors.textMuted} fontSize={10} tickLine={false} axisLine={false} />
           <Tooltip content={<CustomTooltip unit={unit} />} />
           {lines.map(({ key, color, name }) =>
             area ? (
@@ -81,6 +76,6 @@ export default function LiveChart({
           )}
         </ChartComp>
       </ResponsiveContainer>
-    </>
+    </div>
   );
 }

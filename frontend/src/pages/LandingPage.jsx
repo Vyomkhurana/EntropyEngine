@@ -31,14 +31,15 @@ export default function LandingPage({ connected, metrics, aiActive }) {
         >
           <span className="bg-gradient-to-r from-blue-400 via-cyan-300 to-blue-500 bg-clip-text text-transparent">ENTROPY</span>
           <br />
-          <span className="text-white">ENGINE</span>
+          <span style={{ color: "#0F172A" }}>ENGINE</span>
         </motion.h1>
 
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.4 }}
-          className="text-slate-400 text-lg md:text-xl mt-4 max-w-2xl leading-relaxed"
+          className="text-lg md:text-xl mt-4 max-w-2xl leading-relaxed"
+          style={{ color: "#64748B" }}
         >
           AI-powered industrial intelligence for a central business dashboard, connected factories, and sustainability-led revenue.
         </motion.p>
@@ -55,7 +56,7 @@ export default function LandingPage({ connected, metrics, aiActive }) {
             "Revenue + CO2",
             "Live Optimization",
           ].map((tag) => (
-            <span key={tag} className="px-4 py-1.5 rounded-full text-[11px] font-medium bg-slate-800/70 border border-slate-700/50 text-slate-300 tracking-wide">
+            <span key={tag} className="px-4 py-1.5 rounded-full text-[11px] font-medium tracking-wide" style={{ backgroundColor: "#F3F4F6", borderColor: "#D1D5DB", color: "#4B5563", border: "1px solid" }}>
               {tag}
             </span>
           ))}
