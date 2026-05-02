@@ -4,6 +4,7 @@ import { useFactories } from "../context/FactoriesContext";
 import { fetchRevenue } from "../services/api";
 import LiveChart from "../components/LiveChart";
 import KPICard from "../components/KPICard";
+import HeroMetric from "../components/HeroMetric";
 
 export default function CentralBusinessDashboard() {
   const { overview, factories } = useFactories();
@@ -36,97 +37,122 @@ export default function CentralBusinessDashboard() {
   }, [overview]);
 
   const split = overview?.revenue_split ?? {};
+  const totalImpactSummary = `${overview?.total_factories ?? factories.length} factories connected, ${overview?.co2_reduced_tons ?? 0} tons CO2 avoided`;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-end justify-between gap-4 flex-wrap">
-        <div>
-          <div className="text-[10px] uppercase tracking-[0.3em] text-slate-500">Central Business Dashboard</div>
-          <h1 className="text-3xl font-semibold text-white mt-2">Company-wide revenue and sustainability view</h1>
-          <p className="text-slate-400 mt-2 max-w-2xl">
-            This screen represents the company, not a single factory. It combines revenue, savings, carbon impact, and connected factory count.
-          </p>
+    <div className="space-y-8 max-w-7xl mx-auto">
+      {/* Page Header */}
+      <div>
+        <h1 className="text-4xl font-bold text-white mb-2">Business Overview</h1>
+        <p className="text-slate-400 text-base">Company-wide revenue and sustainability metrics across all connected factories</p>
+      </div>
+
+      {/* Hero Metric - Total Revenue */}
+      <HeroMetric
+        label="Total Revenue"
+        value={overview?.total_revenue ?? 0}
+        unit="₹"
+        subtext={totalImpactSummary}
+      />
+
+      {/* Key Metrics Row - Business Focus */}
+      <div>
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-400 mb-4">Business Metrics</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <KPICard label="Monthly Revenue" value={overview?.monthly_revenue} unit="₹/mo" color="emerald" sub="Current MRR" />
+          <KPICard label="Revenue (20%)" value={overview?.monthly_revenue} unit="₹" color="blue" sub="Our portion of savings" />
+          <KPICard label="Factories Active" value={overview?.total_factories ?? factories.length} color="cyan" sub="Connected clients" />
+          <KPICard label="Avg Efficiency" value={87} unit="%" color="purple" sub="Across fleet" />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-        <KPICard label="Total Revenue" value={overview?.total_revenue} unit="₹" color="blue" sub="All revenue streams" />
-        <KPICard label="Monthly Revenue" value={overview?.monthly_revenue} unit="₹/mo" color="emerald" sub="Current MRR" />
-        <KPICard label="Factories Connected" value={overview?.total_factories ?? factories.length} color="cyan" sub="Active client factories" />
-        <KPICard label="CO2 Reduced" value={overview?.co2_reduced_tons} unit="tons" color="purple" sub="Estimated avoided emissions" />
-        <KPICard label="Energy Saved" value={overview?.total_energy_saved_kwh} unit="kWh" color="orange" sub="Monthly aggregate savings" />
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Revenue Chart - Takes 2 columns */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="glass-card p-5 xl:col-span-2"
+          transition={{ duration: 0.4, delay: 0.1 }}
+          className="lg:col-span-2"
         >
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-semibold text-white">Revenue Trend</h2>
-              <p className="text-sm text-slate-500">Monthly revenue across the business</p>
-            </div>
+          <div className="rounded-lg border border-slate-800 bg-slate-900/50 backdrop-blur-sm p-6">
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-400 mb-6">Revenue Trend (12 months)</h2>
+            <LiveChart
+              data={revenue}
+              lines={[{ key: "revenue", color: "#3b82f6", name: "Revenue" }]}
+              label=""
+              unit="₹"
+              area
+              height={280}
+              xKey="month"
+            />
           </div>
-          <LiveChart
-            data={revenue}
-            lines={[{ key: "revenue", color: "#38bdf8", name: "Revenue" }]}
-            label="Revenue Trend"
-            unit="₹"
-            area
-            height={220}
-            xKey="month"
-          />
         </motion.div>
 
-        <div className="space-y-4">
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45 }}
-            className="glass-card p-5"
-          >
-            <div className="text-[10px] uppercase tracking-[0.25em] text-slate-500">Revenue Split</div>
-            <div className="mt-4 space-y-4">
-              <SplitRow label="Performance (20%)" value={split.performance_based} accent="text-cyan-300" />
-              <SplitRow label="SaaS" value={split.saaS} accent="text-emerald-300" />
-              <SplitRow label="Enterprise" value={split.enterprise} accent="text-orange-300" />
+        {/* Sidebar - Savings & Split */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+          className="space-y-4"
+        >
+          {/* CO2 & Energy Summary */}
+          <div className="rounded-lg border border-slate-800 bg-slate-900/50 backdrop-blur-sm p-6">
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-400 mb-4">Sustainability Impact</h2>
+            <div className="space-y-4">
+              <div>
+                <div className="text-xs text-slate-500 mb-1">CO2 Avoided</div>
+                <div className="text-2xl font-bold text-green-500">{overview?.co2_reduced_tons ?? 0}</div>
+                <div className="text-xs text-slate-500">metric tons</div>
+              </div>
+              <div className="border-t border-slate-800 pt-4">
+                <div className="text-xs text-slate-500 mb-1">Energy Saved</div>
+                <div className="text-2xl font-bold text-blue-500">{Number(overview?.total_energy_saved_kwh ?? 0).toLocaleString()}</div>
+                <div className="text-xs text-slate-500">kWh monthly</div>
+              </div>
             </div>
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="glass-card p-5"
-          >
-            <div className="text-[10px] uppercase tracking-[0.25em] text-slate-500">Savings Trend</div>
-            <div className="mt-3 text-sm text-slate-400">Monthly energy savings across connected factories</div>
-            <div className="mt-4">
-              <LiveChart
-                data={savingsTrend}
-                lines={[{ key: "savings", color: "#22c55e", name: "Savings" }]}
-                label="Savings Trend"
-                unit="kWh"
-                area
-                height={180}
-                xKey="month"
-              />
+          {/* Revenue Split */}
+          <div className="rounded-lg border border-slate-800 bg-slate-900/50 backdrop-blur-sm p-6">
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-400 mb-4">Revenue Mix</h2>
+            <div className="space-y-3">
+              <RevenueSplit label="Performance" value={split.performance_based} color="text-cyan-500" />
+              <RevenueSplit label="SaaS" value={split.saaS} color="text-emerald-500" />
+              <RevenueSplit label="Enterprise" value={split.enterprise} color="text-orange-500" />
             </div>
-          </motion.div>
-        </div>
+          </div>
+        </motion.div>
       </div>
+
+      {/* Savings Trend */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.3 }}
+      >
+        <div className="rounded-lg border border-slate-800 bg-slate-900/50 backdrop-blur-sm p-6">
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-400 mb-6">Energy Savings Trend</h2>
+          <LiveChart
+            data={savingsTrend}
+            lines={[{ key: "savings", color: "#10b981", name: "Savings" }]}
+            label=""
+            unit="kWh"
+            area
+            height={240}
+            xKey="month"
+          />
+        </div>
+      </motion.div>
     </div>
   );
 }
 
-function SplitRow({ label, value, accent }) {
+function RevenueSplit({ label, value, color }) {
   return (
-    <div className="flex items-center justify-between gap-3">
+    <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-800/50 last:border-0 last:pb-0">
       <span className="text-sm text-slate-400">{label}</span>
-      <span className={`text-sm font-semibold ${accent}`}>₹{Number(value ?? 0).toLocaleString("en-IN")}</span>
+      <span className={`font-semibold ${color}`}>₹{Number(value ?? 0).toLocaleString("en-IN")}</span>
     </div>
   );
 }

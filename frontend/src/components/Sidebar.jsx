@@ -2,23 +2,24 @@ import { NavLink } from "react-router-dom";
 import { motion } from "framer-motion";
 
 const navItems = [
-  { to: "/dashboard", label: "Dashboard" },
-  { to: "/factories", label: "Factories" },
-  { to: "/analytics", label: "Analytics" },
+  { to: "/dashboard", label: "Dashboard", desc: "Business overview" },
+  { to: "/factories", label: "Factories", desc: "Connected clients" },
+  { to: "/analytics", label: "Analytics", desc: "Coming soon" },
 ];
 
 export default function Sidebar() {
   return (
-    <aside className="w-full lg:w-72 xl:w-80 shrink-0 border-b lg:border-b-0 lg:border-r border-slate-800/70 bg-navy-950/90 backdrop-blur-xl lg:min-h-[calc(100vh-56px)] lg:sticky lg:top-[56px]">
-      <div className="flex flex-col w-full p-4 gap-4">
-        <div className="glass-card p-4">
-          <div className="text-[10px] uppercase tracking-[0.28em] text-slate-500">Company Control</div>
-          <div className="mt-2 text-lg font-semibold text-white">Entropy Engine</div>
-          <p className="mt-2 text-sm text-slate-400 leading-relaxed">
-            Central business intelligence for multi-factory performance, revenue, and sustainability.
+    <aside className="w-full lg:w-72 shrink-0 border-b lg:border-b-0 lg:border-r border-slate-800/50 bg-slate-950/50 backdrop-blur-sm lg:min-h-[calc(100vh-56px)] lg:sticky lg:top-[56px]">
+      <div className="flex flex-col w-full p-6 gap-6">
+        {/* Branding */}
+        <div>
+          <h2 className="text-sm font-bold uppercase tracking-widest text-slate-400">Entropy Engine</h2>
+          <p className="mt-2 text-xs text-slate-500 leading-relaxed">
+            Industrial AI optimization platform for multi-factory operations.
           </p>
         </div>
 
+        {/* Navigation */}
         <nav className="space-y-2">
           {navItems.map((item) => (
             <NavLink
@@ -26,35 +27,32 @@ export default function Sidebar() {
               to={item.to}
               className={({ isActive }) =>
                 [
-                  "block rounded-2xl px-4 py-3 border transition-all duration-200",
+                  "block rounded-lg px-4 py-3 border transition-all duration-200",
                   isActive
-                    ? "bg-blue-500/10 border-blue-400/40 text-blue-200 shadow-lg shadow-blue-500/10"
-                    : "bg-slate-900/40 border-slate-800/70 text-slate-400 hover:text-white hover:bg-slate-800/70 hover:border-slate-700",
+                    ? "bg-blue-500/10 border-blue-500/40 text-blue-300"
+                    : "bg-slate-900/30 border-slate-800/40 text-slate-500 hover:text-slate-300 hover:bg-slate-900/50 hover:border-slate-700/60",
                 ].join(" ")
               }
             >
               <div className="text-sm font-semibold">{item.label}</div>
-              <div className="text-[11px] text-slate-500 mt-0.5">
-                {item.to === "/dashboard" && "Company overview"}
-                {item.to === "/factories" && "Client factory roster"}
-                {item.to === "/analytics" && "Trends and KPIs"}
-              </div>
+              <div className="text-xs text-slate-500 mt-0.5">{item.desc}</div>
             </NavLink>
           ))}
         </nav>
 
+        {/* Footer Info */}
         <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
-          className="glass-card p-4 mt-auto"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+          className="mt-auto pt-6 border-t border-slate-800/30"
         >
-          <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Flow</div>
-          <div className="mt-3 space-y-2 text-sm text-slate-300">
-            <div>1. Launch Dashboard</div>
-            <div>2. Central Business Dashboard</div>
-            <div>3. Factory List</div>
-            <div>4. Individual Factory Detail</div>
+          <div className="text-xs uppercase tracking-widest text-slate-600 mb-3">Navigation Flow</div>
+          <div className="space-y-2 text-xs text-slate-500">
+            <div className="flex items-center gap-2"><span className="text-slate-600">1</span> Landing</div>
+            <div className="flex items-center gap-2"><span className="text-slate-600">2</span> Dashboard</div>
+            <div className="flex items-center gap-2"><span className="text-slate-600">3</span> Factories</div>
+            <div className="flex items-center gap-2"><span className="text-slate-600">4</span> Factory Detail</div>
           </div>
         </motion.div>
       </div>
