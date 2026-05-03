@@ -103,11 +103,11 @@ export default function FactoryScene({ metrics, aiActive = false }) {
   const pressHigh = pressure > 7.5;
 
   return (
-    <div className="rounded-2xl overflow-hidden border border-slate-700/50 bg-slate-900/80 h-[420px] relative">
+    <div className="rounded-2xl overflow-hidden border h-[420px] relative" style={{ borderColor: "#E2E8F0", backgroundColor: "#FFFFFF" }}>
       {/* Scene label */}
       <div className="absolute top-3 left-4 z-10 flex items-center gap-2">
-        <div className={`w-2 h-2 rounded-full ${aiActive ? "bg-blue-400 animate-pulse-glow" : "bg-slate-500"}`} />
-        <span className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">
+        <div className={`w-2 h-2 rounded-full ${aiActive ? "bg-blue-400 animate-pulse-glow" : "bg-slate-300"}`} />
+        <span className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: "#64748B" }}>
           Live Factory View
         </span>
       </div>

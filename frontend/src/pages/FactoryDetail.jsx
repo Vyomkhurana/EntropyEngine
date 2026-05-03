@@ -51,94 +51,130 @@ export default function FactoryDetail() {
   }, [factory, history]);
 
   if (loading) {
-    return <div className="text-slate-400">Loading factory detail…</div>;
+    return <div style={{ color: "#64748B" }}>Loading factory detail…</div>;
   }
 
   if (!factory) {
-    return <div className="text-slate-400">Factory not found.</div>;
+    return <div style={{ color: "#64748B" }}>Factory not found.</div>;
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-end justify-between gap-4 flex-wrap">
-        <div>
-          <div className="text-[10px] uppercase tracking-[0.3em] text-slate-500">Factory Detail</div>
-          <h1 className="text-3xl font-semibold text-white mt-2">{factory.name}</h1>
-          <p className="text-slate-400 mt-2">{factory.location} · {factory.status}</p>
+    <div className="max-w-7xl mx-auto space-y-8">
+      {/* Header */}
+      <div>
+        <h1 className="text-4xl font-bold mb-1" style={{ color: "#0F172A" }}>{factory.name}</h1>
+        <p style={{ color: "#64748B" }}>{factory.location} · <span>{factory.status}</span></p>
+      </div>
+
+      {/* Hero: 3D Factory Scene */}
+      <motion.div
+        className="rounded-lg border overflow-hidden"
+        style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
+        <div className="h-[500px]">
+          <FactoryScene metrics={metrics} aiActive={effectiveAI} />
+        </div>
+      </motion.div>
+
+      {/* Live Operational Metrics */}
+      <div>
+        <h2 className="text-sm font-semibold uppercase tracking-widest mb-4" style={{ color: "#64748B" }}>Operational Performance</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <KPICard label="Power Output" value={metrics.power_output} unit="kW" icon={IconBolt} color="blue" />
+          <KPICard label="Temperature" value={metrics.temperature} unit="°C" icon={IconThermometer} color="orange" />
+          <KPICard label="Pressure" value={metrics.pressure} unit="bar" icon={IconGauge} color="cyan" />
+          <KPICard label="Valve Position" value={metrics.valve_position} unit="%" icon={IconValve} color="emerald" />
+          <KPICard label="Efficiency" value={factory.efficiency_pct} unit="%" color="purple" />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
-        <KPICard label="Power Output" value={metrics.power_output} unit="kW" icon={IconBolt} color="blue" sub="Live operational metric" />
-        <KPICard label="Temperature" value={metrics.temperature} unit="°C" icon={IconThermometer} color="orange" />
-        <KPICard label="Pressure" value={metrics.pressure} unit="bar" icon={IconGauge} color="cyan" />
-        <KPICard label="Valve Position" value={metrics.valve_position} unit="%" icon={IconValve} color="emerald" />
-        <KPICard label="Efficiency" value={factory.efficiency_pct} unit="%" color="purple" sub="Factory efficiency" />
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        <motion.div className="glass-card p-5 xl:col-span-2" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-          <FactoryScene metrics={metrics} aiActive={effectiveAI} />
-        </motion.div>
-
-        <div className="space-y-4">
-          <div className="glass-card p-5 space-y-3">
-            <div className="text-[10px] uppercase tracking-[0.25em] text-slate-500">Factory Economics</div>
-            <EconomicsRow label="Savings generated" value={`₹${Number(factory.monthly_savings).toLocaleString("en-IN")}`} />
-            <EconomicsRow label="Our revenue (20%)" value={`₹${Number(factory.our_revenue).toLocaleString("en-IN")}`} />
-            <EconomicsRow label="CO2 reduction" value={`${factory.co2_tons} tons`} />
-            <EconomicsRow label="ROI" value={`${factory.roi_pct}%`} />
+      {/* Main Content: Economics + AI + Safety */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Economics Section - Takes 2 columns */}
+        <motion.div
+          className="lg:col-span-2 space-y-6"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+        >
+          {/* Economics Card */}
+          <div className="rounded-lg border p-6" style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}>
+            <h2 className="text-sm font-semibold uppercase tracking-widest mb-5" style={{ color: "#0F172A" }}>Economics</h2>
+            <div className="space-y-4">
+              <EconomicsRow label="Monthly Savings Generated" value={`₹${Number(factory.monthly_savings).toLocaleString("en-IN")}`} accent="text-green-600" />
+              <EconomicsRow label="Our Revenue (20% share)" value={`₹${Number(factory.our_revenue).toLocaleString("en-IN")}`} accent="text-blue-600" />
+              <EconomicsRow label="CO2 Reduction Monthly" value={`${factory.co2_tons} metric tons`} accent="text-orange-600" />
+              <EconomicsRow label="ROI" value={`${factory.roi_pct}%`} accent="text-green-600" />
+            </div>
           </div>
 
+          {/* Power Trend Chart */}
+          <div className="rounded-lg border p-6" style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}>
+            <h2 className="text-sm font-semibold uppercase tracking-widest mb-6" style={{ color: "#0F172A" }}>Power Trend (120 ticks)</h2>
+            <LiveChart
+              data={history}
+              lines={[
+                { key: "power_output", color: THEME.chart.power, name: "Power" },
+                { key: "predicted_power", color: THEME.chart.predicted, name: "AI Predicted" },
+              ]}
+              label=""
+              unit="kW"
+              area
+              height={280}
+            />
+          </div>
+
+          {/* Revenue Trend Chart */}
+          <div className="rounded-lg border p-6" style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}>
+            <h2 className="text-sm font-semibold uppercase tracking-widest mb-6" style={{ color: "#0F172A" }}>Revenue Trend (12 months)</h2>
+            <LiveChart
+              data={revenueTrend}
+              lines={[{ key: "value", color: "#16A34A", name: "Revenue" }]}
+              label=""
+              unit="₹"
+              area
+              height={240}
+              xKey="tick"
+            />
+          </div>
+        </motion.div>
+
+        {/* Sidebar: AI + Safety + Insights */}
+        <motion.div
+          className="space-y-4"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+        >
+          {/* AI Toggle */}
           <AIToggle enabled={effectiveAI} onToggle={() => {}} />
+
+          {/* Safety Card */}
           <SafetyIndicator
             level={safety}
             overrides={safetyStat?.stats?.total_overrides ?? 0}
             pressureHeadroom={8.0 - (metrics.pressure ?? 5)}
             tempHeadroom={590 - (metrics.temperature ?? 450)}
           />
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        <motion.div className="glass-card p-5 xl:col-span-2" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-          <LiveChart
-            data={history}
-            lines={[
-              { key: "power_output", color: THEME.chart.power, name: "Power" },
-              { key: "predicted_power", color: THEME.chart.predicted, name: "AI Predicted" },
-            ]}
-            label="Factory Power Trend"
-            unit="kW"
-            area
-          />
-        </motion.div>
-
-        <motion.div className="glass-card p-5" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="text-[10px] uppercase tracking-[0.25em] text-slate-500">AI Insights</div>
-          <div className="mt-4 space-y-3">
-            {insights.map((item) => (
-              <div key={item} className="rounded-2xl bg-slate-950/40 border border-slate-800/80 p-3 text-sm text-slate-300">
-                {item}
+          {/* AI Insights */}
+          {insights.length > 0 && (
+            <div className="rounded-lg border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "#FFFFFF" }}>
+              <h2 className="text-sm font-semibold uppercase tracking-widest mb-4" style={{ color: "#64748B" }}>AI Insights</h2>
+              <div className="space-y-2">
+                {insights.slice(0, 3).map((item, idx) => (
+                  <div key={idx} className="text-sm leading-relaxed" style={{ color: "#64748B" }}>
+                    • {item}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </motion.div>
-      </div>
+            </div>
+          )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <motion.div className="glass-card p-5" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-          <LiveChart
-            data={revenueTrend}
-            lines={[{ key: "value", color: "#22c55e", name: "Savings Based Revenue" }]}
-            label="Savings Revenue Trend"
-            unit="₹"
-            area
-            xKey="tick"
-          />
-        </motion.div>
-
-        <motion.div className="glass-card p-5" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+          {/* Comparison */}
           <ComparisonPanel comparison={comparison} />
         </motion.div>
       </div>
@@ -146,11 +182,11 @@ export default function FactoryDetail() {
   );
 }
 
-function EconomicsRow({ label, value }) {
+function EconomicsRow({ label, value, accent }) {
   return (
-    <div className="flex items-center justify-between gap-4 text-sm">
-      <span className="text-slate-400">{label}</span>
-      <span className="font-semibold text-white">{value}</span>
+    <div className="flex items-center justify-between gap-4 pb-4 last:border-0 last:pb-0" style={{ borderBottomColor: "#E2E8F0", borderBottomWidth: "1px" }}>
+      <span className="text-sm" style={{ color: "#64748B" }}>{label}</span>
+      <span className={`font-semibold ${accent}`}>{value}</span>
     </div>
   );
 }

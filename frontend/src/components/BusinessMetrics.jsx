@@ -26,7 +26,7 @@ export default function BusinessMetrics({ comparison }) {
 
   return (
     <div className="glass-card p-6">
-      <h2 className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest mb-5">
+      <h2 className="text-[10px] font-semibold uppercase tracking-widest mb-5" style={{ color: "#64748B" }}>
         Business Impact
       </h2>
 
@@ -40,7 +40,8 @@ export default function BusinessMetrics({ comparison }) {
           return (
             <motion.div
               key={item.key}
-              className="flex items-start gap-3 p-3 rounded-xl bg-slate-800/30"
+              className="flex items-start gap-3 p-3 rounded-xl"
+              style={{ backgroundColor: "#F8FAFC" }}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.08 }}
@@ -52,8 +53,8 @@ export default function BusinessMetrics({ comparison }) {
                 <p className={`text-lg font-bold font-mono-num ${item.accent} leading-tight`}>
                   {display}
                 </p>
-                {item.unit && <p className="text-[10px] text-slate-500">{item.unit}</p>}
-                <p className="text-[11px] text-slate-400 mt-0.5">{item.label}</p>
+                {item.unit && <p className="text-[10px]" style={{ color: "#64748B" }}>{item.unit}</p>}
+                <p className="text-[11px] mt-0.5" style={{ color: "#64748B" }}>{item.label}</p>
               </div>
             </motion.div>
           );

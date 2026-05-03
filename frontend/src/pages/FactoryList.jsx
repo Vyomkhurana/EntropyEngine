@@ -7,41 +7,44 @@ export default function FactoryList() {
   const navigate = useNavigate();
 
   return (
-    <div className="space-y-6">
-      <div>
-        <div className="text-[10px] uppercase tracking-[0.3em] text-slate-500">Factory List</div>
-        <h1 className="text-3xl font-semibold text-white mt-2">Connected factory clients</h1>
-        <p className="text-slate-400 mt-2 max-w-2xl">Click a factory card to open its detailed operational view.</p>
+    <div className="max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold mb-2" style={{ color: "#0F172A" }}>Factories</h1>
+        <p className="text-base" style={{ color: "#64748B" }}>Connected client factories and their performance metrics</p>
       </div>
 
       {loading ? (
-        <div className="text-slate-400">Loading factories…</div>
+        <div style={{ color: "#64748B" }}>Loading factories…</div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {factories.map((factory, index) => (
             <motion.button
               key={factory.id}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.04 }}
+              transition={{ delay: index * 0.05 }}
               onClick={() => navigate(`/factory/${factory.id}`)}
-              className="text-left glass-card p-5 hover:border-blue-400/40 hover:bg-slate-900/80 transition-all duration-200"
+              className="text-left rounded-lg border p-6 hover:border-slate-300 transition-all duration-200 group cursor-pointer"
+              style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-white font-semibold text-lg">{factory.name}</div>
-                  <div className="text-slate-500 text-sm mt-1">{factory.location}</div>
+              {/* Factory Header */}
+              <div className="mb-4">
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <h3 className="text-lg font-bold" style={{ color: "#0F172A" }}>{factory.name}</h3>
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-widest border" style={{ backgroundColor: "#F1F5F9", borderColor: "#E2E8F0", color: "#64748B" }}>
+                    {factory.status}
+                  </span>
                 </div>
-                <span className="px-2.5 py-1 rounded-full text-[10px] uppercase tracking-[0.2em] bg-slate-800/80 border border-slate-700 text-slate-300">
-                  {factory.status}
-                </span>
+                <p className="text-sm" style={{ color: "#64748B" }}>{factory.location}</p>
               </div>
 
-              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                <Metric label="Efficiency" value={`${factory.efficiency_pct}%`} accent="text-cyan-300" />
-                <Metric label="Savings" value={`₹${Number(factory.monthly_savings).toLocaleString("en-IN")}`} accent="text-emerald-300" />
-                <Metric label="Our Revenue" value={`₹${Number(factory.our_revenue).toLocaleString("en-IN")}`} accent="text-blue-300" />
-                <Metric label="CO2" value={`${factory.co2_tons} tons`} accent="text-orange-300" />
+              {/* Key Metrics - Clean Grid */}
+              <div className="space-y-3 pt-4 border-t" style={{ borderColor: "#E2E8F0" }}>
+                <MetricRow label="Efficiency" value={`${factory.efficiency_pct}%`} accent="text-cyan-600" />
+                <MetricRow label="Monthly Savings" value={`₹${Number(factory.monthly_savings).toLocaleString("en-IN")}`} accent="text-green-600" />
+                <MetricRow label="Our Revenue" value={`₹${Number(factory.our_revenue).toLocaleString("en-IN")}`} accent="text-blue-600" />
+                <MetricRow label="CO2 Reduced" value={`${factory.co2_tons} tons`} accent="text-orange-600" />
               </div>
             </motion.button>
           ))}
@@ -51,11 +54,11 @@ export default function FactoryList() {
   );
 }
 
-function Metric({ label, value, accent }) {
+function MetricRow({ label, value, accent }) {
   return (
-    <div className="rounded-2xl bg-slate-950/40 border border-slate-800/80 p-3">
-      <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">{label}</div>
-      <div className={`mt-1 font-semibold ${accent}`}>{value}</div>
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-sm" style={{ color: "#64748B" }}>{label}</span>
+      <span className={`font-semibold text-sm ${accent}`}>{value}</span>
     </div>
   );
 }

@@ -2,11 +2,11 @@ import { motion } from "framer-motion";
 import { IconAlertTriangle } from "./Icons";
 
 const COLOR_MAP = {
-  blue:    { text: "text-blue-400",    bg: "bg-blue-500/10",  glow: "shadow-blue-500/10",    iconBg: "bg-blue-500/15" },
-  orange:  { text: "text-orange-400",  bg: "bg-orange-500/10", glow: "shadow-orange-500/10", iconBg: "bg-orange-500/15" },
-  cyan:    { text: "text-cyan-400",    bg: "bg-cyan-500/10",   glow: "shadow-cyan-500/10",   iconBg: "bg-cyan-500/15" },
-  emerald: { text: "text-emerald-400", bg: "bg-emerald-500/10", glow: "shadow-emerald-500/10", iconBg: "bg-emerald-500/15" },
-  purple:  { text: "text-purple-400",  bg: "bg-purple-500/10", glow: "shadow-purple-500/10", iconBg: "bg-purple-500/15" },
+  blue:    { text: "text-blue-600",    iconBg: "bg-blue-50", iconText: "text-blue-600" },
+  orange:  { text: "text-orange-600",  iconBg: "bg-orange-50", iconText: "text-orange-600" },
+  cyan:    { text: "text-cyan-600",    iconBg: "bg-cyan-50", iconText: "text-cyan-600" },
+  emerald: { text: "text-green-600", iconBg: "bg-green-50", iconText: "text-green-600" },
+  purple:  { text: "text-purple-600",  iconBg: "bg-purple-50", iconText: "text-purple-600" },
 };
 
 export default function KPICard({ label, value, unit, icon: Icon, color = "blue", alert, sub }) {
@@ -14,47 +14,40 @@ export default function KPICard({ label, value, unit, icon: Icon, color = "blue"
 
   return (
     <motion.div
-      className={`
-        relative overflow-hidden rounded-2xl p-5
-        bg-gradient-to-br from-slate-800/80 to-slate-900/80
-        border border-slate-700/50 backdrop-blur-xl
-        shadow-lg ${c.glow}
-      `}
-      whileHover={{ scale: 1.02, y: -1 }}
+      className="rounded-lg border p-5 transition-colors duration-200"
+      style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}
+      whileHover={{ y: -2 }}
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
     >
-      {/* corner glow */}
-      <div className={`absolute -top-10 -right-10 w-32 h-32 rounded-full ${c.bg} blur-3xl pointer-events-none`} />
-
       <div className="flex items-center justify-between mb-3">
-        <span className="text-slate-400 text-[10px] font-semibold uppercase tracking-widest">{label}</span>
+        <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#64748B" }}>{label}</span>
         {Icon && (
-          <div className={`w-7 h-7 rounded-lg ${c.iconBg} flex items-center justify-center ${c.text}`}>
-            <Icon className="w-3.5 h-3.5" />
+          <div className={`w-8 h-8 rounded-lg ${c.iconBg} flex items-center justify-center ${c.iconText}`}>
+            <Icon className="w-4 h-4" />
           </div>
         )}
       </div>
 
       <motion.div
         key={value}
-        initial={{ opacity: 0, y: 8 }}
+        initial={{ opacity: 0, y: 4 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="flex items-baseline gap-1.5"
+        className="flex items-baseline gap-2"
       >
-        <span className={`text-3xl font-bold font-mono-num ${c.text}`}>
+        <span className={`text-3xl font-bold ${c.text}`}>
           {typeof value === "number" ? value.toFixed(1) : value ?? "—"}
         </span>
-        <span className="text-slate-500 text-sm">{unit}</span>
+        <span className="text-sm" style={{ color: "#64748B" }}>{unit}</span>
       </motion.div>
 
-      {sub && <p className="mt-1.5 text-[11px] text-slate-500">{sub}</p>}
+      {sub && <p className="mt-2 text-xs" style={{ color: "#64748B" }}>{sub}</p>}
 
       {alert && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="mt-2 flex items-center gap-1.5 text-xs text-orange-400 font-medium"
+          className="mt-3 flex items-center gap-1.5 text-xs font-medium text-orange-600"
         >
           <IconAlertTriangle className="w-3 h-3" />
           <span>{alert}</span>
