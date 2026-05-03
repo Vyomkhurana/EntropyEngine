@@ -27,6 +27,60 @@ export default function BusinessDashboard() {
     : 0;
   const totalCO2Saved = factories?.reduce((sum, f) => sum + (f.co2_tons || 0), 0) || 0;
   const growthPercent = 18; // Mock growth data
+  const grossMarginPct = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
+  const ltv = mrr * 12 * 0.65;
+  const revenuePerTonCO2 = totalCO2Saved > 0 ? totalRevenue / totalCO2Saved : 0;
+  const scaleTargetFactories = 20;
+  const projectedScale = numFactories > 0 ? scaleTargetFactories / numFactories : 4;
+  const projectedRevenue = totalRevenue * projectedScale;
+  const projectedProfit = profit * projectedScale;
+  const projectedCO2 = totalCO2Saved * projectedScale;
+  const averageRevenuePerFactory = numFactories > 0 ? totalRevenue / numFactories : 0;
+  const opportunityFactory = factories?.length
+    ? [...factories].sort((a, b) => (a.efficiency_pct || 0) - (b.efficiency_pct || 0))[0]
+    : null;
+  const opportunityRegion = factories?.length
+    ? Object.values(
+        factories.reduce((acc, factory) => {
+          const region = (factory.location || "Unknown").split(",")[0];
+          if (!acc[region]) {
+            acc[region] = { region, totalRevenue: 0, efficiencyTotal: 0, count: 0 };
+          }
+          acc[region].totalRevenue += factory.our_revenue || 0;
+          acc[region].efficiencyTotal += factory.efficiency_pct || 0;
+          acc[region].count += 1;
+          return acc;
+        }, {})
+      ).sort((a, b) => b.totalRevenue - a.totalRevenue)[0]
+    : null;
+  const bestRegion = factories?.length
+    ? Object.values(
+        factories.reduce((acc, factory) => {
+          const region = (factory.location || "Unknown").split(",")[0];
+          if (!acc[region]) {
+            acc[region] = { region, totalRevenue: 0, efficiencyTotal: 0, count: 0 };
+          }
+          acc[region].totalRevenue += factory.our_revenue || 0;
+          acc[region].efficiencyTotal += factory.efficiency_pct || 0;
+          acc[region].count += 1;
+          return acc;
+        }, {})
+      ).sort((a, b) => b.totalRevenue - a.totalRevenue)[0]
+    : null;
+  const efficiencyRegion = factories?.length
+    ? Object.values(
+        factories.reduce((acc, factory) => {
+          const region = (factory.location || "Unknown").split(",")[0];
+          if (!acc[region]) {
+            acc[region] = { region, totalRevenue: 0, efficiencyTotal: 0, count: 0 };
+          }
+          acc[region].totalRevenue += factory.our_revenue || 0;
+          acc[region].efficiencyTotal += factory.efficiency_pct || 0;
+          acc[region].count += 1;
+          return acc;
+        }, {})
+      ).sort((a, b) => (b.efficiencyTotal / b.count) - (a.efficiencyTotal / a.count))[0]
+    : null;
   
   // Revenue breakdown (mock)
   const performanceRevenue = totalRevenue * 0.60; // 60% from performance model
@@ -36,6 +90,33 @@ export default function BusinessDashboard() {
   // Top performer
   const topFactory = factories?.reduce((best, f) => 
     (f.our_revenue > (best?.our_revenue || 0)) ? f : best, null);
+  const sortedFactories = factories ? [...factories].sort((a, b) => (b.our_revenue || 0) - (a.our_revenue || 0)) : [];
+  const recommendedActions = [
+    topFactory && {
+      title: `Expand to 3 more factories like ${topFactory.name}`,
+      detail: `Potential +₹${((topFactory.our_revenue || 0) * 3).toLocaleString("en-IN")} / month`,
+      badge: "Scale",
+      tone: "blue",
+    },
+    opportunityFactory && {
+      title: `Improve efficiency in ${opportunityFactory.name}`,
+      detail: `Unlock ₹${Math.max(0, Math.round(averageRevenuePerFactory - (opportunityFactory.our_revenue || 0))).toLocaleString("en-IN")} additional revenue`,
+      badge: "Opportunity",
+      tone: "amber",
+    },
+    bestRegion && {
+      title: `${bestRegion.region} region has the highest ROI`,
+      detail: `Prioritize expansion in ${bestRegion.region} for faster payback`,
+      badge: "Priority",
+      tone: "green",
+    },
+  ].filter(Boolean);
+
+  const profitDrivers = [
+    { label: "Efficiency improvements", value: 42, color: "#16A34A", description: "Savings captured from better plant performance" },
+    { label: "AI optimization", value: 33, color: "#2563EB", description: "Revenue from automated control gains" },
+    { label: "Subscriptions", value: 25, color: "#7C3AED", description: "Recurring SaaS platform income" },
+  ];
 
   return (
     <div className="space-y-8">
@@ -107,8 +188,8 @@ export default function BusinessDashboard() {
                     {factory.location}
                   </div>
                 </div>
-                <div className="px-2 py-1 rounded text-xs font-bold" style={{ backgroundColor: index === 0 ? "#F0FDF4" : "#F8FAFC", color: index === 0 ? "#16A34A" : "#64748B", border: "1px solid #E2E8F0" }}>
-                  {index === 0 ? "Top" : "Live"}
+                <div className="px-2 py-1 rounded text-xs font-bold" style={{ backgroundColor: getFactoryTone(factory, index).bg, color: getFactoryTone(factory, index).fg, border: "1px solid #E2E8F0" }}>
+                  {getFactoryTone(factory, index).label}
                 </div>
               </div>
               <div className="space-y-2">
@@ -127,6 +208,56 @@ export default function BusinessDashboard() {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* ===== DECISION PANEL ===== */}
+      <div>
+        <div className="mb-4">
+          <h2 className="text-sm font-semibold uppercase tracking-widest mb-1" style={{ color: "#64748B" }}>
+            Recommended Actions
+          </h2>
+          <p className="text-[13px]" style={{ color: "#64748B" }}>
+            Founder-grade decisions for the next growth move
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {recommendedActions.map((action) => (
+            <div key={action.title} className="p-5 rounded-lg" style={{ backgroundColor: "#FFFFFF", border: "1px solid #E2E8F0" }}>
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: badgeTone(action.tone).fg }}>
+                  {action.badge}
+                </span>
+                <div className="px-2 py-1 rounded text-[11px] font-bold" style={{ backgroundColor: badgeTone(action.tone).bg, color: badgeTone(action.tone).fg }}>
+                  Action
+                </div>
+              </div>
+              <div className="font-semibold mb-2" style={{ color: "#0F172A" }}>
+                {action.title}
+              </div>
+              <div className="text-[13px]" style={{ color: "#64748B" }}>
+                {action.detail}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ===== GROWTH PROJECTION ===== */}
+      <div>
+        <div className="mb-4">
+          <h2 className="text-sm font-semibold uppercase tracking-widest mb-1" style={{ color: "#64748B" }}>
+            Growth Projection
+          </h2>
+          <p className="text-[13px]" style={{ color: "#64748B" }}>
+            If we scale from {numFactories} factories to {scaleTargetFactories}, here is the business outcome
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <MetricBlock label="Current Factories" value={`${numFactories}`} subtext="live sites" accent="blue" />
+          <MetricBlock label="Projected Revenue" value={`₹${(projectedRevenue / 100000).toFixed(2)}L`} subtext={`at ${scaleTargetFactories} factories`} accent="emerald" />
+          <MetricBlock label="Projected Profit" value={`₹${(projectedProfit / 100000).toFixed(2)}L`} subtext="scaled model" accent="green" />
+          <MetricBlock label="Projected CO₂ Reduction" value={`${projectedCO2.toFixed(1)} tons`} subtext="expansion impact" accent="cyan" />
         </div>
       </div>
 
@@ -162,6 +293,32 @@ export default function BusinessDashboard() {
             description="Custom implementations"
             color="#7C3AED"
           />
+        </div>
+      </div>
+
+      {/* ===== PROFIT DRIVERS ===== */}
+      <div>
+        <div className="mb-4">
+          <h2 className="text-sm font-semibold uppercase tracking-widest mb-1" style={{ color: "#64748B" }}>
+            What drives our revenue?
+          </h2>
+          <p className="text-[13px]" style={{ color: "#64748B" }}>
+            Less data, more meaning: the three sources behind the business model
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {profitDrivers.map((driver) => (
+            <div key={driver.label} className="p-5 rounded-lg" style={{ backgroundColor: "#FFFFFF", border: "1px solid #E2E8F0" }}>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-semibold" style={{ color: "#0F172A" }}>{driver.label}</h4>
+                <span className="text-[11px] font-bold" style={{ color: driver.color }}>{driver.value}%</span>
+              </div>
+              <div className="h-2 rounded-full mb-3" style={{ backgroundColor: "#E2E8F0" }}>
+                <div className="h-2 rounded-full" style={{ width: `${driver.value}%`, backgroundColor: driver.color }} />
+              </div>
+              <div className="text-[13px]" style={{ color: "#64748B" }}>{driver.description}</div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -251,6 +408,24 @@ export default function BusinessDashboard() {
         </div>
       </div>
 
+      {/* ===== STARTUP METRICS ===== */}
+      <div>
+        <div className="mb-4">
+          <h2 className="text-sm font-semibold uppercase tracking-widest mb-1" style={{ color: "#64748B" }}>
+            Startup Metrics
+          </h2>
+          <p className="text-[13px]" style={{ color: "#64748B" }}>
+            Founder and investor numbers that matter
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <MetricBlock label="LTV" value={`₹${(ltv / 1000).toFixed(1)}K`} subtext="annualized customer value" accent="blue" />
+          <MetricBlock label="CAC" value="₹45K" subtext="cost to acquire one factory" accent="orange" />
+          <MetricBlock label="Payback Period" value="3.2 mo" subtext="time to recover CAC" accent="green" />
+          <MetricBlock label="Gross Margin" value={`${grossMarginPct.toFixed(0)}%`} subtext="profit quality" accent="emerald" />
+        </div>
+      </div>
+
       {/* ===== TOP FACTORIES TABLE ===== */}
       <div>
         <div className="mb-4">
@@ -263,7 +438,7 @@ export default function BusinessDashboard() {
         </div>
         <div className="p-6 rounded-lg" style={{ backgroundColor: "#FFFFFF", border: "1px solid #E2E8F0" }}>
           <div className="space-y-3">
-            {factories?.slice(0, 5).map((f, idx) => (
+            {sortedFactories.slice(0, 5).map((f, idx) => (
               <div key={f.id} className="flex items-center justify-between pb-3 border-b" style={{ borderColor: "#E2E8F0" }}>
                 <div className="flex items-center gap-4">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold" 
@@ -274,7 +449,12 @@ export default function BusinessDashboard() {
                     {idx + 1}
                   </div>
                   <div>
-                    <div className="font-medium" style={{ color: "#0F172A" }}>{f.name}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium" style={{ color: "#0F172A" }}>{f.name}</div>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold" style={{ backgroundColor: getFactoryTone(f, idx).bg, color: getFactoryTone(f, idx).fg }}>
+                        {getFactoryTone(f, idx).label}
+                      </span>
+                    </div>
                     <div className="text-[12px]" style={{ color: "#64748B" }}>{f.location}</div>
                   </div>
                 </div>
@@ -294,6 +474,32 @@ export default function BusinessDashboard() {
         </div>
       </div>
 
+      {/* ===== REGION-WISE INSIGHT ===== */}
+      <div>
+        <div className="mb-4">
+          <h2 className="text-sm font-semibold uppercase tracking-widest mb-1" style={{ color: "#64748B" }}>
+            Region-wise Insight
+          </h2>
+          <p className="text-[13px]" style={{ color: "#64748B" }}>
+            Where to scale next based on ROI and efficiency signals
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="p-5 rounded-lg" style={{ backgroundColor: "#FFFFFF", border: "1px solid #E2E8F0" }}>
+            <div className="text-[11px] font-semibold uppercase tracking-widest mb-1" style={{ color: "#64748B" }}>Best ROI</div>
+            <div className="text-lg font-semibold" style={{ color: "#0F172A" }}>{bestRegion ? `${bestRegion.region} → highest ROI` : "Mumbai → highest ROI"}</div>
+          </div>
+          <div className="p-5 rounded-lg" style={{ backgroundColor: "#FFFFFF", border: "1px solid #E2E8F0" }}>
+            <div className="text-[11px] font-semibold uppercase tracking-widest mb-1" style={{ color: "#64748B" }}>Most Efficient</div>
+            <div className="text-lg font-semibold" style={{ color: "#0F172A" }}>{efficiencyRegion ? `${efficiencyRegion.region} → highest efficiency` : "Chennai → high efficiency"}</div>
+          </div>
+          <div className="p-5 rounded-lg" style={{ backgroundColor: "#FFFFFF", border: "1px solid #E2E8F0" }}>
+            <div className="text-[11px] font-semibold uppercase tracking-widest mb-1" style={{ color: "#64748B" }}>Opportunity</div>
+            <div className="text-lg font-semibold" style={{ color: "#0F172A" }}>{opportunityRegion ? `${opportunityRegion.region} → expansion candidate` : "Bengaluru → improvement opportunity"}</div>
+          </div>
+        </div>
+      </div>
+
       {/* ===== SUSTAINABILITY + BUSINESS IMPACT ===== */}
       <div>
         <div className="mb-4">
@@ -303,6 +509,11 @@ export default function BusinessDashboard() {
           <p className="text-[13px]" style={{ color: "#64748B" }}>
             How environmental impact drives business value
           </p>
+        </div>
+        <div className="mb-4 p-4 rounded-lg" style={{ backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0" }}>
+          <div className="text-[13px]" style={{ color: "#0F172A" }}>
+            For every 1 ton CO₂ reduced → <span className="font-semibold" style={{ color: "#16A34A" }}>₹{revenuePerTonCO2.toFixed(0)}</span> revenue generated
+          </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <SustainabilityCard 
@@ -338,6 +549,26 @@ export default function BusinessDashboard() {
       </div>
     </div>
   );
+}
+
+function badgeTone(tone) {
+  const map = {
+    blue: { bg: "#EFF6FF", fg: "#2563EB" },
+    green: { bg: "#F0FDF4", fg: "#16A34A" },
+    amber: { bg: "#FFFBEB", fg: "#D97706" },
+    red: { bg: "#FEF2F2", fg: "#DC2626" },
+  };
+  return map[tone] || map.blue;
+}
+
+function getFactoryTone(factory, index) {
+  const revenue = factory?.our_revenue || 0;
+  const efficiency = factory?.efficiency_pct || 0;
+  if (index === 0) return { ...badgeTone("blue"), label: "Top Performer" };
+  if (efficiency < 80) return { ...badgeTone("amber"), label: "Optimization Opportunity" };
+  if (revenue >= 70000) return { ...badgeTone("green"), label: "High Profit" };
+  if (efficiency >= 90) return { ...badgeTone("green"), label: "High Efficiency" };
+  return { ...badgeTone("blue"), label: "Live" };
 }
 
 // ===== COMPONENT: METRIC BLOCK =====
