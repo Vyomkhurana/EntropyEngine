@@ -2,9 +2,30 @@ import { motion } from "framer-motion";
 import { IconShieldCheck, IconAlertTriangle } from "./Icons";
 
 const LEVEL_CONFIG = {
-  NORMAL:   { color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/30", dot: "bg-emerald-400", label: "ALL CLEAR",  IconComp: IconShieldCheck },
-  WARNING:  { color: "text-amber-400",   bg: "bg-amber-500/10",   border: "border-amber-500/30",   dot: "bg-amber-400",   label: "WARNING",    IconComp: IconAlertTriangle },
-  CRITICAL: { color: "text-red-400",     bg: "bg-red-500/10",     border: "border-red-500/30",     dot: "bg-red-400",     label: "CRITICAL",   IconComp: IconAlertTriangle },
+  NORMAL:   {
+    accent: "#16A34A",
+    bg: "#F0FDF4",
+    border: "#86EFAC",
+    dot: "#16A34A",
+    label: "ALL CLEAR",
+    IconComp: IconShieldCheck,
+  },
+  WARNING:  {
+    accent: "#D97706",
+    bg: "#FFFBEB",
+    border: "#FCD34D",
+    dot: "#D97706",
+    label: "WARNING",
+    IconComp: IconAlertTriangle,
+  },
+  CRITICAL: {
+    accent: "#DC2626",
+    bg: "#FEF2F2",
+    border: "#FCA5A5",
+    dot: "#DC2626",
+    label: "CRITICAL",
+    IconComp: IconAlertTriangle,
+  },
 };
 
 export default function SafetyIndicator({ level = "NORMAL", overrides = 0, pressureHeadroom, tempHeadroom }) {
@@ -13,13 +34,14 @@ export default function SafetyIndicator({ level = "NORMAL", overrides = 0, press
 
   return (
     <motion.div
-      className={`glass-card p-4 border ${cfg.border}`}
+      className="p-4 border rounded-xl shadow-[0_1px_2px_rgba(15,23,42,0.05),0_10px_24px_rgba(15,23,42,0.08)]"
+      style={{ backgroundColor: cfg.bg, borderColor: cfg.border }}
       animate={level === "CRITICAL" ? { scale: [1, 1.01, 1] } : {}}
       transition={level === "CRITICAL" ? { repeat: Infinity, duration: 0.8 } : {}}
     >
       <div className="flex items-center gap-2 mb-3">
-        <Icon className={`w-4 h-4 ${cfg.color}`} />
-        <p className={`text-xs font-bold uppercase tracking-wider ${cfg.color}`}>
+        <Icon className="w-4 h-4" style={{ color: cfg.accent }} />
+        <p className="text-xs font-extrabold uppercase tracking-[0.18em]" style={{ color: cfg.accent }}>
           Safety — {cfg.label}
         </p>
       </div>
@@ -28,8 +50,8 @@ export default function SafetyIndicator({ level = "NORMAL", overrides = 0, press
         <MetricRow label="Pressure Headroom" value={pressureHeadroom != null ? `${pressureHeadroom.toFixed(2)} bar` : "—"} />
         <MetricRow label="Temp Headroom" value={tempHeadroom != null ? `${tempHeadroom.toFixed(0)} °C` : "—"} />
         <div>
-          <p style={{ color: "#64748B" }}>Safety Overrides</p>
-          <p className={`font-mono-num font-semibold ${overrides > 0 ? "text-amber-400" : "text-emerald-400"}`}>
+          <p className="font-semibold" style={{ color: "#475569" }}>Safety Overrides</p>
+          <p className="font-mono-num font-bold text-base" style={{ color: overrides > 0 ? "#D97706" : "#16A34A" }}>
             {overrides}
           </p>
         </div>
@@ -41,8 +63,8 @@ export default function SafetyIndicator({ level = "NORMAL", overrides = 0, press
 function MetricRow({ label, value }) {
   return (
     <div>
-      <p style={{ color: "#64748B" }}>{label}</p>
-      <p className="font-mono-num font-semibold" style={{ color: "#0F172A" }}>{value}</p>
+      <p className="font-semibold" style={{ color: "#475569" }}>{label}</p>
+      <p className="font-mono-num font-extrabold text-sm" style={{ color: "#0F172A" }}>{value}</p>
     </div>
   );
 }
