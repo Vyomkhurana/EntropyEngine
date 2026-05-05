@@ -1,6 +1,7 @@
 import {
   LineChart, Line, XAxis, YAxis, Tooltip,
   ResponsiveContainer, CartesianGrid, Area, AreaChart,
+  ReferenceDot,
 } from "recharts";
 import { THEME } from "../constants/theme";
 
@@ -26,6 +27,7 @@ export default function LiveChart({
   height = 180,
   area = false,
   xKey = "tick",
+  annotations = [],
 }) {
   const ChartComp = area ? AreaChart : LineChart;
   const LineComp  = area ? Area : Line;
@@ -74,6 +76,23 @@ export default function LiveChart({
               />
             )
           )}
+          {annotations.map((annotation, index) => (
+            <ReferenceDot
+              key={`${annotation.label}-${index}`}
+              x={annotation.x}
+              y={annotation.y}
+              r={6}
+              fill={annotation.color || "#F97316"}
+              stroke="#FFFFFF"
+              strokeWidth={2}
+              label={{
+                value: annotation.label,
+                position: annotation.position || "top",
+                fill: annotation.color || "#F97316",
+                fontSize: 10,
+              }}
+            />
+          ))}
         </ChartComp>
       </ResponsiveContainer>
     </div>
