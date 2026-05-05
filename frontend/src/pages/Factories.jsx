@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useFactories } from "../context/FactoriesContext";
 import FactoryDetail from "./FactoryDetail";
+import { formatBusinessCurrency } from "../utils/currency";
 
 export default function Factories() {
   const { factories, loading, reload } = useFactories();
@@ -27,7 +28,7 @@ export default function Factories() {
                     <div className="font-medium">{f.name}</div>
                     <div className="text-[12px]" style={{ color: "#64748B" }}>{f.location}</div>
                   </div>
-                  <div className="text-sm font-mono-num">₹{f.our_revenue}</div>
+                  <div className="text-sm font-mono-num">{formatBusinessCurrency(f.our_revenue)}</div>
                 </div>
                 <div className="mt-3 text-[13px]" style={{ color: "#64748B" }}>CO₂: {f.co2_tons} t · Efficiency: {f.efficiency_pct}%</div>
               </div>

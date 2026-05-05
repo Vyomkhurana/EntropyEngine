@@ -11,6 +11,7 @@ import SafetyIndicator from "../components/SafetyIndicator";
 import ComparisonPanel from "../components/ComparisonPanel";
 import FactoryScene from "../three/FactoryScene";
 import { IconBolt, IconThermometer, IconGauge, IconValve } from "../components/Icons";
+import { convertFromINR, formatBusinessCurrency } from "../utils/currency";
 
 export default function FactoryDetail() {
   const { id } = useParams();
@@ -46,7 +47,7 @@ export default function FactoryDetail() {
     return history.slice(-12).map((item, index) => ({
       tick: index + 1,
       month: item.tick,
-      value: base > 0 ? Math.max(0, base * (0.18 + index * 0.01)) : 0,
+      value: base > 0 ? convertFromINR(Math.max(0, base * (0.18 + index * 0.01))) : 0,
     }));
   }, [factory, history]);
 
@@ -104,8 +105,8 @@ export default function FactoryDetail() {
           <div className="rounded-lg border p-6" style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}>
             <h2 className="text-sm font-semibold uppercase tracking-widest mb-5" style={{ color: "#0F172A" }}>Economics</h2>
             <div className="space-y-4">
-              <EconomicsRow label="Monthly Savings Generated" value={`₹${Number(factory.monthly_savings).toLocaleString("en-IN")}`} accent="text-green-600" />
-              <EconomicsRow label="Our Revenue (20% share)" value={`₹${Number(factory.our_revenue).toLocaleString("en-IN")}`} accent="text-blue-600" />
+              <EconomicsRow label="Monthly Savings Generated" value={formatBusinessCurrency(factory.monthly_savings)} accent="text-green-600" />
+              <EconomicsRow label="Our Revenue (20% share)" value={formatBusinessCurrency(factory.our_revenue)} accent="text-blue-600" />
               <EconomicsRow label="CO2 Reduction Monthly" value={`${factory.co2_tons} metric tons`} accent="text-orange-600" />
               <EconomicsRow label="ROI" value={`${factory.roi_pct}%`} accent="text-green-600" />
             </div>
@@ -129,12 +130,12 @@ export default function FactoryDetail() {
 
           {/* Revenue Trend Chart */}
           <div className="rounded-lg border p-6" style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}>
-            <h2 className="text-sm font-semibold uppercase tracking-widest mb-6" style={{ color: "#0F172A" }}>Revenue Trend (12 months)</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-widest mb-6" style={{ color: "#0F172A" }}>Revenue Trend ($)</h2>
             <LiveChart
               data={revenueTrend}
-              lines={[{ key: "value", color: "#16A34A", name: "Revenue" }]}
+              lines={[{ key: "value", color: "#2563EB", name: "$ Revenue" }]}
               label=""
-              unit="₹"
+              unit="$"
               area
               height={240}
               xKey="tick"
