@@ -12,7 +12,9 @@ export function FactoriesProvider({ children }) {
     setLoading(true);
     try {
       const data = await fetchFactories();
-      setFactories(data);
+      // normalize response shape: API may return array or { value: [...] }
+      const normalized = Array.isArray(data) ? data : (data && data.value) ? data.value : [];
+      setFactories(normalized);
     } finally {
       setLoading(false);
     }
@@ -20,7 +22,9 @@ export function FactoriesProvider({ children }) {
 
   async function loadOverview() {
     const data = await fetchBusinessOverview();
-    setOverview(data);
+    // normalize overview if wrapped
+    const overviewData = data && data.total_revenue ? data : (data && data.overview) ? data.overview : data;
+    setOverview(overviewData);
   }
 
   useEffect(() => {

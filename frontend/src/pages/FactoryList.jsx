@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useFactories } from "../context/FactoriesContext";
+import { formatBusinessCurrency } from "../utils/currency";
 
 export default function FactoryList() {
   const { factories, loading } = useFactories();
@@ -42,8 +43,8 @@ export default function FactoryList() {
               {/* Key Metrics - Clean Grid */}
               <div className="space-y-3 pt-4 border-t" style={{ borderColor: "#E2E8F0" }}>
                 <MetricRow label="Efficiency" value={`${factory.efficiency_pct}%`} accent="text-cyan-600" />
-                <MetricRow label="Monthly Savings" value={`₹${Number(factory.monthly_savings).toLocaleString("en-IN")}`} accent="text-green-600" />
-                <MetricRow label="Our Revenue" value={`₹${Number(factory.our_revenue).toLocaleString("en-IN")}`} accent="text-blue-600" />
+                <MetricRow label="Monthly Savings ($)" value={formatBusinessCurrency(factory.monthly_savings)} accent="text-green-600" />
+                <MetricRow label="Our Revenue ($)" value={formatBusinessCurrency(factory.our_revenue)} accent="text-blue-600" />
                 <MetricRow label="CO2 Reduced" value={`${factory.co2_tons} tons`} accent="text-orange-600" />
               </div>
             </motion.button>

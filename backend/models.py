@@ -25,6 +25,22 @@ class PlantMetrics(BaseModel):
     power_output: float = Field(
         ..., ge=0, le=500, description="Turbine electrical output (kW)"
     )
+    # ── NEW: Derived operational metrics ──
+    turbine_rpm: float = Field(
+        default=0, ge=0, le=5500, description="Turbine speed (RPM)"
+    )
+    efficiency_pct: float = Field(
+        default=75.0, ge=20, le=95, description="Operating efficiency (%)"
+    )
+    heat_recovered_kwh: float = Field(
+        default=0, description="Cumulative heat recovered (kWh)"
+    )
+    energy_loss_pct: float = Field(
+        default=25.0, ge=5, le=80, description="Energy loss (%)"
+    )
+    co2_avoided_tons: float = Field(
+        default=0, description="Cumulative CO2 avoided (metric tons)"
+    )
     timestamp: float = Field(
         ..., description="Unix epoch timestamp of this reading"
     )
