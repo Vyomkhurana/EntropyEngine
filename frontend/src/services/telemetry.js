@@ -147,7 +147,7 @@ class TelemetryClient {
 
 // Create singleton instance
 const telemetryClient = new TelemetryClient(
-  process.env.REACT_APP_API_BASE_URL || "http://localhost:8001"
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8001"
 );
 
 export default telemetryClient;

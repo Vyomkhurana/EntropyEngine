@@ -488,29 +488,29 @@ async def get_full_state():
     }
 
 
-    # ── Business / SaaS demo endpoints (NOW DERIVED FROM PHYSICS) ──
+# ── Business / SaaS demo endpoints (NOW DERIVED FROM PHYSICS) ──
 
 
-    class FactorySummary(BaseModel):
-        id: int
-        name: str
-        location: str
-        efficiency_improvement_pct: float
-        monthly_savings_usd: float
-        monthly_revenue_usd: float
-        total_savings_usd: float
-        total_revenue_usd: float
-        co2_avoided_tons: float
-        roi_pct: float
-        kwh_generated: float
+class FactorySummary(BaseModel):
+    id: int
+    name: str
+    location: str
+    efficiency_improvement_pct: float
+    monthly_savings_usd: float
+    monthly_revenue_usd: float
+    total_savings_usd: float
+    total_revenue_usd: float
+    co2_avoided_tons: float
+    roi_pct: float
+    kwh_generated: float
 
 
-    class BusinessOverview(BaseModel):
-        total_revenue_usd: float
-        mrr_usd: float
-        total_factories: int
-        global_co2_tons: float
-        total_energy_kwh: float
+class BusinessOverview(BaseModel):
+    total_revenue_usd: float
+    mrr_usd: float
+    total_factories: int
+    global_co2_tons: float
+    total_energy_kwh: float
 
 
 @app.get("/api/factories", summary="List factories", tags=["Business"])
