@@ -134,32 +134,101 @@ def get_load_error() -> str | None:
 
 def _heuristic_fallback(metrics: dict) -> float:
     """
-    Simple rule-based valve controller (mirrors Person 2's baseline).
-    Used when MPC is unavailable or has low confidence.
+    Enhanced rule-based valve controller with predictive optimization.
+    Uses physics-based heuristics to maximize power output and efficiency.
     """
     temp = metrics.get("temperature", 500)
     pressure = metrics.get("pressure", 5)
     current_valve = metrics.get("valve_position", 50)
+    efficiency = metrics.get("efficiency_pct", 75)
+    rpm = metrics.get("turbine_rpm", 3000)
+    flow_rate = metrics.get("flow_rate", 3.0)
+    
+    # ─────────────────────────────────────────────────────────────
+    # STEP 1: Safety constraints (hard limits)
+    # ─────────────────────────────────────────────────────────────
     valve = current_valve
-
-    # Pressure safety
-    if pressure > 7.8:
-        valve -= 8.0
-    elif pressure > 7.5:
-        valve -= 3.0
-    # Temperature optimization
-    elif temp > 590:
+    
+    # Pressure safety: max 8.5 bar
+    if pressure > 8.3:
+        valve -= 8.0  # Emergency: close valve
+    elif pressure > 8.0:
         valve -= 5.0
+    elif pressure > 7.5:
+        valve -= 2.0
+    
+    # Temperature safety: max 590°C
+    elif temp > 585:
+        valve -= 8.0  # Emergency close
+    elif temp > 570:
+        valve -= 4.0
+    elif temp > 550:
+        valve -= 1.0
+    
+    # RPM safety: max 5200 RPM
+    elif rpm > 5100:
+        valve -= 3.0
+    
+    # ─────────────────────────────────────────────────────────────
+    # STEP 2: Efficiency optimization (away from safety limits)
+    # ─────────────────────────────────────────────────────────────
+    # Optimal operating point is around 75% valve opening
+    # (creates balance between flow and pressure)
+    
+    optimal_valve = 75.0
+    valve_deviation = abs(current_valve - optimal_valve)
+    
+    if valve_deviation > 10.0:
+        # We're far from optimal: move toward optimal
+        if current_valve < optimal_valve:
+            valve += 2.0  # Open valve to increase flow and efficiency
+        else:
+            valve -= 2.0  # Close valve to increase pressure and efficiency
+    
+    # ─────────────────────────────────────────────────────────────
+    # STEP 3: Temperature-based fine-tuning
+    # ─────────────────────────────────────────────────────────────
+    # Target temperature: 510-520°C (sweet spot for efficiency)
+    
+    if temp < 480:
+        valve += 3.0  # Open valve to increase temperature
+    elif temp < 500:
+        valve += 1.5
+    elif temp > 540:
+        valve -= 1.5
     elif temp > 560:
         valve -= 3.0
-    elif temp > 520:
+    
+    # ─────────────────────────────────────────────────────────────
+    # STEP 4: Pressure-based optimization
+    # ─────────────────────────────────────────────────────────────
+    # Target pressure: 6.0-6.5 bar (sweet spot for power generation)
+    
+    if pressure < 5.5:
+        valve += 2.0  # Open to increase pressure
+    elif pressure < 6.0:
         valve += 1.0
-    elif temp > 480:
-        valve += 3.0
-    elif temp < 440:
-        valve -= 3.0
-
-    # Anti-oscillation clamp
+    elif pressure > 7.0:
+        valve -= 1.0
+    elif pressure > 7.5:
+        valve -= 2.0
+    
+    # ─────────────────────────────────────────────────────────────
+    # STEP 5: Flow rate optimization
+    # ─────────────────────────────────────────────────────────────
+    # Higher flow = more power (up to a limit)
+    # Optimal flow: 3.5-4.0 kg/s
+    
+    if flow_rate < 3.0:
+        valve += 1.5  # Increase flow
+    elif flow_rate < 3.5:
+        valve += 0.5
+    elif flow_rate > 4.5:
+        valve -= 1.5  # Decrease flow (getting too high)
+    
+    # ─────────────────────────────────────────────────────────────
+    # STEP 6: Anti-oscillation and clamping
+    # ─────────────────────────────────────────────────────────────
     delta = valve - current_valve
     delta = max(-MAX_VALVE_CHANGE_PER_TICK, min(MAX_VALVE_CHANGE_PER_TICK, delta))
     valve = current_valve + delta
