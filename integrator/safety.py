@@ -58,6 +58,7 @@ class SafetyFallback:
         """
         pressure = metrics.get("pressure", 0)
         temp = metrics.get("temperature", 0)
+        rpm = metrics.get("turbine_rpm", 0)
         current = metrics.get("valve_position", 50)
         valve = proposed_valve
         overridden = False
@@ -101,7 +102,20 @@ class SafetyFallback:
                 f"Temp {temp:.1f}°C > {TEMPERATURE_CRITICAL} → reducing valve",
             )
 
-        # ── RULE 4: Hard clamp ──
+        # ── NEW RULE 4: RPM safety (max 5200 RPM) ──
+        max_rpm = 5200
+        if rpm > max_rpm * 0.99:  # 5148 RPM warning
+            valve = min(valve, current - 3)
+            if not overridden:
+                overridden = True
+                reason = "RPM_HIGH"
+                level = "WARNING"
+            log_safety_event(
+                "WARNING",
+                f"RPM {rpm:.0f} approaching limit {max_rpm} → reducing valve",
+            )
+
+        # ── RULE 5: Hard clamp ──
         valve = max(MIN_VALVE, min(MAX_VALVE, round(valve, 2)))
 
         # ── Track stats ──
@@ -122,6 +136,7 @@ class SafetyFallback:
             "level": level,
             "pressure_headroom": round(PRESSURE_HARD_LIMIT - pressure, 2),
             "temp_headroom": round(600.0 - temp, 1),
+            "rpm_headroom": round(max_rpm - rpm, 0),  # ── NEW: RPM headroom ──
         }
         return valve, report
 
