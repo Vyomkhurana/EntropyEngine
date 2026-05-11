@@ -426,14 +426,24 @@ class SimulationEngine:
     # ──────────────────────────────────────────
 
     def _auto_control(self) -> None:
-        """Simple proportional controller — keeps temperature near 500 °C."""
-        target_temp = 500.0
-        error = self._temperature - target_temp
+        """Rule-based optimizer — drives the plant toward a higher-yield operating band."""
+        target_valve = 75.0
 
-        # Open valve when too hot, close when too cold
-        adjustment = error * 0.5  # proportional gain
-        new_target = clamp(self._valve_position + adjustment, 0.0, 100.0)
-        self._target_valve_position = new_target
+        # Safety-aware corrections: back off if pressure/temperature rise too much.
+        if self._pressure > 7.4:
+            target_valve -= min(18.0, (self._pressure - 7.4) * 14.0)
+        if self._temperature > 560:
+            target_valve -= min(12.0, (self._temperature - 560) * 0.10)
+
+        # If efficiency is low, bias more aggressively toward the optimal operating band.
+        if self._efficiency_pct < 82:
+            target_valve += min(8.0, (82.0 - self._efficiency_pct) * 0.8)
+
+        # If the plant is underperforming, open the valve slightly to increase throughput.
+        if self._power_output < 210:
+            target_valve += 4.0
+
+        self._target_valve_position = clamp(target_valve, 20.0, 88.0)
 
     # ──────────────────────────────────────────
     # Logging
