@@ -1,58 +1,50 @@
-import React, { useEffect, useState, useMemo } from "react";
-import { useMetrics } from "../hooks/useMetrics";
-import { fetchBusinessOverview, fetchRevenue, fetchFactories } from "../services/api";
+import React, { useMemo } from "react";
+import { useSimulation } from "../context/SimulationContext";
 import LiveChart from "../components/LiveChart";
 
 export default function BusinessDashboard() {
-  const { state } = useMetrics(1000);
-  const [overview, setOverview] = useState(null);
-  const [revenue, setRevenue] = useState([]);
-  const [factories, setFactories] = useState([]);
-
-  useEffect(() => {
-    let mounted = true;
-    
-    fetchBusinessOverview().then((d) => { if (mounted) setOverview(d); }).catch(console.error);
-    fetchRevenue(12).then((d) => {
-      if (mounted) setRevenue((d || []).map((p, idx) => ({...p, tick: idx, revenue: p.revenue || 0})));
-    }).catch(console.error);
-    fetchFactories().then((d) => { if (mounted) setFactories(d || []); }).catch(console.error);
-    
-    return () => (mounted = false);
-  }, []);
-
-  const business = state?.business || {};
-  const metrics = state?.metrics || {};
-  const safety = state?.safety_level || "NORMAL";
-  const aiMode = state?.ai_mode ?? false;
-  const confidence = state?.confidence || {};
-  const viewportFactories = factories.length > 0 ? factories : Array.from({ length: 3 }, (_, index) => ({
-    id: `factory-${index + 1}`,
-    name: `Plant ${index + 1}`,
-    location: ["Bengaluru", "Pune", "Chennai"][index % 3],
-    monthly_revenue_usd: 82000 - index * 8500,
-    monthly_savings_usd: 24000 - index * 2200,
-    efficiency_improvement_pct: 14 - index * 2,
-  }));
+  const sim = useSimulation();
+  const simBusiness = sim?.business || {};
+  const liveFactories = sim?.factories || {};
+  const liveFactoryList = Object.values(liveFactories);
+  const metrics = sim?.optimizationMetrics || {};
+  const safety = sim?.safetyState?.level || "NORMAL";
+  const aiMode = Boolean(sim?.aiEnabled);
+  const confidence = { confidence: sim?.confidence ?? 0 };
+  const viewportFactories = liveFactoryList.length > 0
+    ? liveFactoryList.map((f) => ({
+        id: f.id,
+        name: f.name,
+        location: f.location || "Industrial Zone",
+        monthly_revenue_usd: f.monthly_revenue_usd || 0,
+        monthly_savings_usd: f.monthly_savings_usd || 0,
+        potential_savings_usd: f.potential_savings_usd || 0,
+        efficiency_improvement_pct: Math.max(0, (f.efficiency || 76) - 76),
+      }))
+    : [];
 
   // Derived metrics
-  const totalRevenue = overview?.total_revenue_usd || 0;
-  const mrr = overview?.mrr_usd || 0;
+  const totalRevenue = simBusiness.annualRevenueUsd || 0;
+  const mrr = simBusiness.mrrUsd || 0;
   const totalProfit = totalRevenue * 0.35;
-  const growth = 18;
-  const co2Avoided = overview?.global_co2_tons || 0;
-  const numFactories = overview?.total_factories || factories.length || 0;
-  const energyGenerated = overview?.total_energy_kwh || 0;
-  const baseEfficiency = Math.max(70, Math.min(95, metrics.efficiency_pct || business.efficiency_pct || 75));
+  const co2Avoided = simBusiness.co2AvoidedTons || 0;
+  const numFactories = liveFactoryList.length;
+  const energyGenerated = Math.max(0, (metrics.power_output || 0) * 730);
+  const baseEfficiency = Math.max(0, Math.min(100, metrics.efficiency_pct || 0));
+  const optimizationGainPct = aiMode ? Math.max(0, baseEfficiency - 76) : 0;
+  const monthlyAiSavings = aiMode ? (simBusiness.monthlySavingsUsd || 0) : 0;
+  const potentialMonthlySavings = simBusiness.potentialMonthlySavingsUsd || 0;
+  const baselineMonthlyValue = simBusiness.baselineMonthlyValueUsd || 0;
+  const safeRevenue = Math.max(1, totalRevenue);
   
   // Unit Economics
   const avgRevenuePerFactory = numFactories > 0 ? totalRevenue / numFactories : 0;
-  const avgSavingsPerFactory = factories.length > 0 ? factories.reduce((s, f) => s + (f.monthly_savings_usd || 0), 0) / factories.length : 0;
+  const avgSavingsPerFactory = viewportFactories.length > 0 ? viewportFactories.reduce((s, f) => s + (f.monthly_savings_usd || 0), 0) / viewportFactories.length : 0;
   const revenuePerTonCO2 = co2Avoided > 0 ? totalRevenue / co2Avoided : 0;
   
   // Top performers
-  const topFactory = factories.length > 0 ? [...factories].sort((a, b) => (b.monthly_revenue_usd || 0) - (a.monthly_revenue_usd || 0))[0] : null;
-  const mostEfficient = factories.length > 0 ? [...factories].sort((a, b) => (b.efficiency_improvement_pct || 0) - (a.efficiency_improvement_pct || 0))[0] : null;
+  const topFactory = viewportFactories.length > 0 ? [...viewportFactories].sort((a, b) => (b.monthly_revenue_usd || 0) - (a.monthly_revenue_usd || 0))[0] : null;
+  const mostEfficient = viewportFactories.length > 0 ? [...viewportFactories].sort((a, b) => (b.efficiency_improvement_pct || 0) - (a.efficiency_improvement_pct || 0))[0] : null;
   
   // Revenue breakdown
   const perfRevenue = totalRevenue * 0.6;
@@ -62,7 +54,7 @@ export default function BusinessDashboard() {
   const monthlyProfit = monthlyRevenueStream * 0.35;
   
   // Growth projection
-  const scaleTarget = 20;
+  const scaleTarget = Math.max(numFactories, 1) * 2;
   const projectedRevenue = totalRevenue * (scaleTarget / Math.max(1, numFactories));
   const projectedProfit = totalProfit * (scaleTarget / Math.max(1, numFactories));
   const projectedCO2 = co2Avoided * (scaleTarget / Math.max(1, numFactories));
@@ -75,15 +67,40 @@ export default function BusinessDashboard() {
   const operationalHealthScore = Math.min(100, baseEfficiency + 8);
   const anomalyCount = aiMode ? 0 : 1;
   const insights = [
-    aiMode && `AI optimization increased thermal recovery by ${(Math.max(8, (baseEfficiency - 75) * 1.8)).toFixed(1)}% this month`,
-    topFactory && `${topFactory.name} contributes ${Math.max(22, Math.min(34, Math.round((topFactory.monthly_revenue_usd || 0) / Math.max(1, monthlyRevenueStream) * 100)))}% of total monthly value`,
-    `Estimated annual carbon credit opportunity: $${(projectedCO2 * 15 / 1000).toFixed(0)}K at scale`,
-    `Payback period reduced from 18 to ${Math.max(10, Math.round(500000 / Math.max(1, monthlyProfit)))} months`,
-    scaleTarget > numFactories && `Expansion to Bengaluru region could unlock $${(projectedProfit / 1000).toFixed(0)}K monthly profit potential`,
+    aiMode && `AI optimization is delivering ${optimizationGainPct.toFixed(1)}% efficiency gain over baseline`,
+    !aiMode && `Manual baseline mode active: no AI savings are counted until optimization is enabled`,
+    topFactory && `${topFactory.name} contributes ${Math.max(0, Math.round((topFactory.monthly_revenue_usd || 0) / Math.max(1, monthlyRevenueStream) * 100))}% of monthly value`,
+    `Potential monthly savings if optimized: $${potentialMonthlySavings.toFixed(0)}`,
+    `Baseline monthly operating value: $${baselineMonthlyValue.toFixed(0)}`,
   ].filter(Boolean);
 
-  const sparkTrend = useMemo(() => [65, 68, 71, 70, 73, 75, 76, 74, 77, 78, 79, Math.round(baseEfficiency)], [baseEfficiency]);
-  const growthTrend = useMemo(() => [58, 61, 62, 65, 68, 71, 74, 76, 79, 83, 86, aiMode ? 91 : 86], [aiMode]);
+  const revenue = useMemo(() => {
+    const monthly = mrr;
+    return Array.from({ length: 12 }, (_, idx) => ({
+      tick: idx,
+      revenue: monthly * (0.92 + idx * 0.01),
+    }));
+  }, [mrr]);
+
+  const sparkTrend = useMemo(() => [
+    Math.max(0, baseEfficiency - 2.5),
+    Math.max(0, baseEfficiency - 2.2),
+    Math.max(0, baseEfficiency - 2.0),
+    Math.max(0, baseEfficiency - 1.6),
+    Math.max(0, baseEfficiency - 1.2),
+    Math.max(0, baseEfficiency - 0.8),
+    Math.max(0, baseEfficiency - 0.5),
+    Math.max(0, baseEfficiency - 0.2),
+    baseEfficiency,
+  ], [baseEfficiency]);
+  const growthTrend = useMemo(() => [
+    Math.max(0, mrr * 0.90),
+    Math.max(0, mrr * 0.92),
+    Math.max(0, mrr * 0.94),
+    Math.max(0, mrr * 0.96),
+    Math.max(0, mrr * 0.98),
+    Math.max(0, mrr),
+  ], [mrr]);
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6 lg:px-8">
@@ -113,11 +130,11 @@ export default function BusinessDashboard() {
 
         {/* HERO KPI SECTION */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <KPICard label="Annual Revenue" value={`$${(totalRevenue/1000).toFixed(1)}K`} change="+18%" tone="blue" trend={sparkTrend} />
-          <KPICard label="MRR" value={`$${(mrr/1000).toFixed(1)}K`} change="+12%" tone="green" trend={growthTrend} />
-          <KPICard label="Gross Profit" value={`$${(totalProfit/1000).toFixed(1)}K`} change="+22%" tone="blue" trend={sparkTrend} />
-          <KPICard label="CO₂ Avoided" value={`${Math.max(48, co2Avoided).toFixed(0)}T`} change="+8%" tone="cyan" trend={growthTrend} />
-          <KPICard label="Growth" value={`+${growth}%`} change="YoY" tone="emerald" trend={sparkTrend} />
+          <KPICard label="Annual Revenue" value={`$${(totalRevenue/1000).toFixed(1)}K`} change={`${((mrr / Math.max(1, baselineMonthlyValue * 0.28)) * 100).toFixed(0)}% of baseline`} tone="blue" trend={sparkTrend} />
+          <KPICard label="MRR" value={`$${(mrr/1000).toFixed(1)}K`} change={`$${monthlyAiSavings.toFixed(0)} AI savings`} tone="green" trend={growthTrend} />
+          <KPICard label="Gross Profit" value={`$${(totalProfit/1000).toFixed(1)}K`} change={`${((totalProfit / Math.max(1, totalRevenue)) * 100).toFixed(0)}% margin`} tone="blue" trend={sparkTrend} />
+          <KPICard label="CO₂ Avoided" value={`${co2Avoided.toFixed(0)}T`} change={`$${(simBusiness.co2ValueUsd || 0).toFixed(0)} value`} tone="cyan" trend={growthTrend} />
+          <KPICard label="Optimization" value={aiMode ? `${optimizationGainPct.toFixed(1)}%` : "Paused"} change={aiMode ? "AI active" : "manual baseline"} tone="emerald" trend={sparkTrend} />
         </div>
 
         {/* TWIN VISUALIZATION: REVENUE + OPERATIONS */}
@@ -185,10 +202,10 @@ export default function BusinessDashboard() {
           <div className="rounded-lg border p-6 shadow-sm transition-shadow duration-200 hover:shadow-md" style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}>
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest" style={{ color: "#0F172A" }}>Business Impact</h2>
             <div className="space-y-3">
-              <BusinessMetric label="Monthly Savings" value={`$${(business.monthly_savings_usd || 0).toFixed(0)}`} subtext="vs baseline operations" />
-              <BusinessMetric label="ROI" value={`${(business.roi_pct || 12).toFixed(0)}%`} subtext="on investment" />
-              <BusinessMetric label="CO₂ Reduction Value" value={`$${(business.co2_value_usd || 0).toFixed(0)}`} subtext="carbon credits" />
-              <BusinessMetric label="Payback Period" value={`${(business.payback_months || 24).toFixed(0)} months`} subtext="time to break even" />
+              <BusinessMetric label="Monthly AI Savings" value={`$${monthlyAiSavings.toFixed(0)}`} subtext={aiMode ? "realized vs manual baseline" : "AI paused: no savings counted"} />
+              <BusinessMetric label="Potential if Optimized" value={`$${potentialMonthlySavings.toFixed(0)}`} subtext="forecast only" />
+              <BusinessMetric label="CO₂ Reduction Value" value={`$${(simBusiness.co2ValueUsd || 0).toFixed(0)}`} subtext="operating-state derived" />
+              <BusinessMetric label="Payback Period" value={aiMode && simBusiness.paybackMonths > 0 ? `${simBusiness.paybackMonths.toFixed(0)} months` : "N/A"} subtext={aiMode ? "time to break even" : "requires AI gains"} />
             </div>
           </div>
         </div>
@@ -203,7 +220,7 @@ export default function BusinessDashboard() {
               <EconMetric label="Avg Revenue/Factory" value={`$${(avgRevenuePerFactory/1000).toFixed(1)}K`} />
               <EconMetric label="Avg Savings/Factory" value={`$${avgSavingsPerFactory.toFixed(0)}`} />
               <EconMetric label="Revenue per Ton CO₂" value={`$${revenuePerTonCO2.toFixed(0)}`} />
-              <EconMetric label="Gross Margin" value={`${((totalProfit/totalRevenue)*100).toFixed(0)}%`} />
+              <EconMetric label="Gross Margin" value={`${((totalProfit/safeRevenue)*100).toFixed(0)}%`} />
             </div>
           </div>
 
@@ -211,10 +228,10 @@ export default function BusinessDashboard() {
           <div className="rounded-lg border p-6 shadow-sm transition-shadow duration-200 hover:shadow-md" style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}>
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest" style={{ color: "#0F172A" }}>Strategic Recommendations</h2>
             <div className="space-y-2.5">
-              {topFactory && <ActionItem text={`Scale from ${topFactory.name} model (${(topFactory.monthly_revenue_usd).toFixed(0)}/mo)`} color="blue" />}
-              {mostEfficient && <ActionItem text={`Apply ${mostEfficient.name} efficiency gains to underperformers`} color="green" />}
-              <ActionItem text={`Projected: ${scaleTarget} factories = $${(projectedRevenue/1000).toFixed(0)}K annual revenue`} color="blue" />
-              <ActionItem text={`${(projectedCO2).toFixed(0)}T CO₂ avoided at scale = ${(projectedCO2 * 15).toFixed(0)} carbon credits`} color="cyan" />
+              {aiMode && topFactory && <ActionItem text={`Scale from ${topFactory.name} model (${(topFactory.monthly_revenue_usd).toFixed(0)}/mo)`} color="blue" />}
+              {aiMode && mostEfficient && <ActionItem text={`Apply ${mostEfficient.name} optimization pattern to underperformers`} color="green" />}
+              <ActionItem text={`Potential monthly gain if AI enabled: $${potentialMonthlySavings.toFixed(0)}`} color="blue" />
+              <ActionItem text={`${(projectedCO2).toFixed(0)}T CO₂ impact at ${scaleTarget} factories`} color="cyan" />
             </div>
           </div>
         </div>
@@ -246,15 +263,15 @@ export default function BusinessDashboard() {
               <p className="text-sm" style={{ color: "#475569" }}>Real-time control system achieving optimal efficiency</p>
             </div>
             <div className="text-right">
-              <div className="text-3xl font-bold tracking-tight" style={{color: state?.ai_mode ? '#16A34A' : '#64748B'}}>
-                {state?.ai_mode ? 'ACTIVE' : 'STANDBY'}
+              <div className="text-3xl font-bold tracking-tight" style={{color: aiMode ? '#16A34A' : '#64748B'}}>
+                {aiMode ? 'ACTIVE' : 'MANUAL'}
               </div>
-              <p className="text-xs mt-1" style={{color: "#475569"}}>{(confidence.confidence || 0).toFixed(0)}% confidence</p>
+              <p className="text-xs mt-1" style={{color: "#475569"}}>{aiMode ? `${(confidence.confidence || 0).toFixed(0)}% confidence` : "AI paused"}</p>
             </div>
           </div>
           <div className="mt-4 grid grid-cols-1 gap-4 border-t border-slate-200 pt-4 sm:grid-cols-4">
-            <div><span className="text-xs" style={{color: "#475569"}}>Current Efficiency:</span> <strong style={{color: "#0F172A", fontSize: "14px"}}>{(metrics.efficiency_pct || 75).toFixed(1)}%</strong></div>
-            <div><span className="text-xs" style={{color: "#475569"}}>Optimization Gain:</span> <strong style={{color: "#16A34A", fontSize: "14px"}}>+{((metrics.efficiency_pct || 75) - 68).toFixed(1)}%</strong></div>
+            <div><span className="text-xs" style={{color: "#475569"}}>Current Efficiency:</span> <strong style={{color: "#0F172A", fontSize: "14px"}}>{(metrics.efficiency_pct || 0).toFixed(1)}%</strong></div>
+            <div><span className="text-xs" style={{color: "#475569"}}>Optimization Gain:</span> <strong style={{color: aiMode ? "#16A34A" : "#64748B", fontSize: "14px"}}>{aiMode ? `+${optimizationGainPct.toFixed(1)}%` : "0.0%"}</strong></div>
             <div><span className="text-xs" style={{color: "#475569"}}>Safety Status:</span> <strong style={{color: safety === 'NORMAL' ? '#16A34A' : '#DC2626', fontSize: "14px"}}>{safety}</strong></div>
             <div><span className="text-xs" style={{color: "#475569"}}>Uptime:</span> <strong style={{color: "#0F172A", fontSize: "14px"}}>{systemUptime.toFixed(1)}%</strong></div>
           </div>
