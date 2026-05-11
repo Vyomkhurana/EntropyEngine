@@ -1,11 +1,9 @@
 import { motion } from "framer-motion";
-import { toggleAI } from "../services/api";
 
 export default function AIToggle({ enabled, onToggle }) {
   const handleToggle = async () => {
     try {
       const next = !enabled;
-      await toggleAI(next);
       onToggle(next);
     } catch (e) {
       console.error("Toggle failed:", e);
