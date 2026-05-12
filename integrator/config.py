@@ -31,6 +31,7 @@ except ImportError:
 SIM_API_URL: str = os.getenv("SIMULATION_API_URL", "http://localhost:8000")
 SIM_METRICS_URL: str = f"{SIM_API_URL}{os.getenv('SIMULATION_METRICS_PATH', '/metrics')}"
 SIM_CONTROL_URL: str = f"{SIM_API_URL}{os.getenv('SIMULATION_CONTROL_PATH', '/control')}"
+SIM_AI_MODE_URL: str = f"{SIM_API_URL}{os.getenv('SIMULATION_AI_MODE_PATH', '/ai-mode')}"
 SIM_STATUS_URL: str = f"{SIM_API_URL}{os.getenv('SIMULATION_STATUS_PATH', '/status')}"
 SIM_HEALTH_URL: str = f"{SIM_API_URL}{os.getenv('SIMULATION_HEALTH_PATH', '/health')}"
 

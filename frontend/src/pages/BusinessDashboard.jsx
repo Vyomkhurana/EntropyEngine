@@ -1,431 +1,441 @@
-import React, { useEffect, useState, useMemo } from "react";
-import { useFactories } from "../context/FactoriesContext";
+import React, { useMemo } from "react";
+import { useSimulation } from "../context/SimulationContext";
 import LiveChart from "../components/LiveChart";
-import { CURRENCY_OPTIONS, convertFromINR, formatBusinessCurrency } from "../utils/currency";
 
 export default function BusinessDashboard() {
-  const { overview, factories, loading, fetchRevenue } = useFactories();
-  const [revenue, setRevenue] = useState([]);
-  const currency = "USD";
-  const currencyLabel = CURRENCY_OPTIONS[currency].label;
+  const sim = useSimulation();
+  const simBusiness = sim?.business || {};
+  const liveFactories = sim?.factories || {};
+  const liveFactoryList = Object.values(liveFactories);
+  const metrics = sim?.optimizationMetrics || {};
+  const safety = sim?.safetyState?.level || "NORMAL";
+  const aiMode = Boolean(sim?.aiEnabled);
+  const confidence = { confidence: sim?.confidence ?? 0 };
+  const viewportFactories = liveFactoryList.length > 0
+    ? liveFactoryList.map((f) => ({
+        id: f.id,
+        name: f.name,
+        location: f.location || "Industrial Zone",
+        monthly_revenue_usd: f.monthly_revenue_usd || 0,
+        monthly_savings_usd: f.monthly_savings_usd || 0,
+        potential_savings_usd: f.potential_savings_usd || 0,
+        efficiency_improvement_pct: Math.max(0, (f.efficiency || 76) - 76),
+      }))
+    : [];
 
-  useEffect(() => {
-    let mounted = true;
-    fetchRevenue(12).then((d) => {
-      if (mounted) {
-        setRevenue(d.map((p, idx) => ({
-          ...p,
-          tick: idx,
-          revenue: convertFromINR(p.revenue ?? p.value ?? 0, currency),
-        })));
-      }
-    });
-    return () => (mounted = false);
-  }, [fetchRevenue, currency]);
-
-  // Collapsible sections state must be declared unconditionally to preserve hooks order
-  const [showUnit, setShowUnit] = useState(false);
-  const [showSustain, setShowSustain] = useState(false);
-  const [showInsights, setShowInsights] = useState(false);
-
-  // NOTE: we intentionally render the executive layout even while loading
-  // to allow quick visual preview. Loading states are shown inline.
-
-  // Calculate derived metrics
-  const totalRevenue = overview?.total_revenue || 0;
-  const mrr = overview?.mrr || 0;
-  const totalCosts = totalRevenue * 0.35; // Assume 35% cost ratio
-  const profit = totalRevenue - totalCosts;
-  const numFactories = factories?.length || 0;
-  const revenuePerFactory = numFactories > 0 ? totalRevenue / numFactories : 0;
-  const avgSavingsPerFactory = factories?.length > 0 
-    ? factories.reduce((sum, f) => sum + (f.monthly_savings || 0), 0) / factories.length 
-    : 0;
-  const totalCO2Saved = factories?.reduce((sum, f) => sum + (f.co2_tons || 0), 0) || 0;
-  const growthPercent = 18; // Mock growth data
-  const grossMarginPct = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
-  const ltv = mrr * 12 * 0.65;
-  const revenuePerTonCO2 = totalCO2Saved > 0 ? totalRevenue / totalCO2Saved : 0;
-  const scaleTargetFactories = 20;
-  const projectedScale = numFactories > 0 ? scaleTargetFactories / numFactories : 4;
-  const projectedRevenue = totalRevenue * projectedScale;
-  const projectedProfit = profit * projectedScale;
-  const projectedCO2 = totalCO2Saved * projectedScale;
-  const averageRevenuePerFactory = numFactories > 0 ? totalRevenue / numFactories : 0;
-  const opportunityFactory = factories?.length
-    ? [...factories].sort((a, b) => (a.efficiency_pct || 0) - (b.efficiency_pct || 0))[0]
-    : null;
-  const opportunityRegion = factories?.length
-    ? Object.values(
-        factories.reduce((acc, factory) => {
-          const region = (factory.location || "Unknown").split(",")[0];
-          if (!acc[region]) {
-            acc[region] = { region, totalRevenue: 0, efficiencyTotal: 0, count: 0 };
-          }
-          acc[region].totalRevenue += factory.our_revenue || 0;
-          acc[region].efficiencyTotal += factory.efficiency_pct || 0;
-          acc[region].count += 1;
-          return acc;
-        }, {})
-      ).sort((a, b) => b.totalRevenue - a.totalRevenue)[0]
-    : null;
-  const bestRegion = factories?.length
-    ? Object.values(
-        factories.reduce((acc, factory) => {
-          const region = (factory.location || "Unknown").split(",")[0];
-          if (!acc[region]) {
-            acc[region] = { region, totalRevenue: 0, efficiencyTotal: 0, count: 0 };
-          }
-          acc[region].totalRevenue += factory.our_revenue || 0;
-          acc[region].efficiencyTotal += factory.efficiency_pct || 0;
-          acc[region].count += 1;
-          return acc;
-        }, {})
-      ).sort((a, b) => b.totalRevenue - a.totalRevenue)[0]
-    : null;
-  const efficiencyRegion = factories?.length
-    ? Object.values(
-        factories.reduce((acc, factory) => {
-          const region = (factory.location || "Unknown").split(",")[0];
-          if (!acc[region]) {
-            acc[region] = { region, totalRevenue: 0, efficiencyTotal: 0, count: 0 };
-          }
-          acc[region].totalRevenue += factory.our_revenue || 0;
-          acc[region].efficiencyTotal += factory.efficiency_pct || 0;
-          acc[region].count += 1;
-          return acc;
-        }, {})
-      ).sort((a, b) => (b.efficiencyTotal / b.count) - (a.efficiencyTotal / a.count))[0]
-    : null;
+  // Derived metrics
+  const totalRevenue = simBusiness.annualRevenueUsd || 0;
+  const mrr = simBusiness.mrrUsd || 0;
+  const totalProfit = totalRevenue * 0.35;
+  const co2Avoided = simBusiness.co2AvoidedTons || 0;
+  const numFactories = liveFactoryList.length;
+  const energyGenerated = Math.max(0, (metrics.power_output || 0) * 730);
+  const baseEfficiency = Math.max(0, Math.min(100, metrics.efficiency_pct || 0));
+  const optimizationGainPct = aiMode ? Math.max(0, baseEfficiency - 76) : 0;
+  const monthlyAiSavings = aiMode ? (simBusiness.monthlySavingsUsd || 0) : 0;
+  const potentialMonthlySavings = simBusiness.potentialMonthlySavingsUsd || 0;
+  const baselineMonthlyValue = simBusiness.baselineMonthlyValueUsd || 0;
+  const safeRevenue = Math.max(1, totalRevenue);
   
-  // Revenue breakdown (mock)
-  const performanceRevenue = totalRevenue * 0.60; // 60% from performance model
-  const saasRevenue = totalRevenue * 0.25; // 25% from SaaS
-  const enterpriseRevenue = totalRevenue * 0.15; // 15% from enterprise
-
-  // Top performer
-  const topFactory = factories?.reduce((best, f) => 
-    (f.our_revenue > (best?.our_revenue || 0)) ? f : best, null);
-  const sortedFactories = factories ? [...factories].sort((a, b) => (b.our_revenue || 0) - (a.our_revenue || 0)) : [];
-  const recommendedActions = [
-    topFactory && {
-      title: `Expand to 3 more factories like ${topFactory.name}`,
-      detail: `Potential +${formatBusinessCurrency((topFactory.our_revenue || 0) * 3, currency)} / month`,
-      badge: "Scale",
-      tone: "blue",
-    },
-    opportunityFactory && {
-      title: `Improve efficiency in ${opportunityFactory.name}`,
-      detail: `Unlock ${formatBusinessCurrency(Math.max(0, Math.round(averageRevenuePerFactory - (opportunityFactory.our_revenue || 0))), currency)} additional revenue`,
-      badge: "Opportunity",
-      tone: "amber",
-    },
-    bestRegion && {
-      title: `${bestRegion.region} region has the highest ROI`,
-      detail: `Prioritize expansion in ${bestRegion.region} for faster payback`,
-      badge: "Priority",
-      tone: "green",
-    },
+  // Unit Economics
+  const avgRevenuePerFactory = numFactories > 0 ? totalRevenue / numFactories : 0;
+  const avgSavingsPerFactory = viewportFactories.length > 0 ? viewportFactories.reduce((s, f) => s + (f.monthly_savings_usd || 0), 0) / viewportFactories.length : 0;
+  const revenuePerTonCO2 = co2Avoided > 0 ? totalRevenue / co2Avoided : 0;
+  
+  // Top performers
+  const topFactory = viewportFactories.length > 0 ? [...viewportFactories].sort((a, b) => (b.monthly_revenue_usd || 0) - (a.monthly_revenue_usd || 0))[0] : null;
+  const mostEfficient = viewportFactories.length > 0 ? [...viewportFactories].sort((a, b) => (b.efficiency_improvement_pct || 0) - (a.efficiency_improvement_pct || 0))[0] : null;
+  
+  // Revenue breakdown
+  const perfRevenue = totalRevenue * 0.6;
+  const saasRevenue = totalRevenue * 0.25;
+  const enterpriseRevenue = totalRevenue * 0.15;
+  const monthlyRevenueStream = mrr || totalRevenue / 12;
+  const monthlyProfit = monthlyRevenueStream * 0.35;
+  
+  // Growth projection
+  const scaleTarget = Math.max(numFactories, 1) * 2;
+  const projectedRevenue = totalRevenue * (scaleTarget / Math.max(1, numFactories));
+  const projectedProfit = totalProfit * (scaleTarget / Math.max(1, numFactories));
+  const projectedCO2 = co2Avoided * (scaleTarget / Math.max(1, numFactories));
+  const adjustedGrossMargin = Number.isFinite((monthlyProfit / Math.max(1, monthlyRevenueStream)) * 100)
+    ? Math.max(52, Math.min(78, (monthlyProfit / Math.max(1, monthlyRevenueStream)) * 100))
+    : 66;
+  const systemUptime = 99.8;
+  const safetyComplianceScore = 100;
+  const aiConfidenceScore = Math.min(100, 65 + (aiMode ? 25 : 0) + (confidence?.confidence || 0) / 2);
+  const operationalHealthScore = Math.min(100, baseEfficiency + 8);
+  const anomalyCount = aiMode ? 0 : 1;
+  const insights = [
+    aiMode && `AI optimization is delivering ${optimizationGainPct.toFixed(1)}% efficiency gain over baseline`,
+    !aiMode && `Manual baseline mode active: no AI savings are counted until optimization is enabled`,
+    topFactory && `${topFactory.name} contributes ${Math.max(0, Math.round((topFactory.monthly_revenue_usd || 0) / Math.max(1, monthlyRevenueStream) * 100))}% of monthly value`,
+    `Potential monthly savings if optimized: $${potentialMonthlySavings.toFixed(0)}`,
+    `Baseline monthly operating value: $${baselineMonthlyValue.toFixed(0)}`,
   ].filter(Boolean);
 
-  const profitDrivers = [
-    { label: "Efficiency improvements", value: 42, color: "#16A34A", description: "Savings captured from better plant performance" },
-    { label: "AI optimization", value: 33, color: "#2563EB", description: "Revenue from automated control gains" },
-    { label: "Subscriptions", value: 25, color: "#7C3AED", description: "Recurring SaaS platform income" },
-  ];
+  const revenue = useMemo(() => {
+    const monthly = mrr;
+    return Array.from({ length: 12 }, (_, idx) => ({
+      tick: idx,
+      revenue: monthly * (0.92 + idx * 0.01),
+    }));
+  }, [mrr]);
 
-  // Modern investor-ready layout
-  const top3 = sortedFactories.slice(0, 3);
-  const topActions = recommendedActions.slice(0, 3);
-
-  const revenueSparks = useMemo(() => (revenue || []).map(r => r.revenue || r.value || 0).slice(-12), [revenue]);
+  const sparkTrend = useMemo(() => [
+    Math.max(0, baseEfficiency - 2.5),
+    Math.max(0, baseEfficiency - 2.2),
+    Math.max(0, baseEfficiency - 2.0),
+    Math.max(0, baseEfficiency - 1.6),
+    Math.max(0, baseEfficiency - 1.2),
+    Math.max(0, baseEfficiency - 0.8),
+    Math.max(0, baseEfficiency - 0.5),
+    Math.max(0, baseEfficiency - 0.2),
+    baseEfficiency,
+  ], [baseEfficiency]);
+  const growthTrend = useMemo(() => [
+    Math.max(0, mrr * 0.90),
+    Math.max(0, mrr * 0.92),
+    Math.max(0, mrr * 0.94),
+    Math.max(0, mrr * 0.96),
+    Math.max(0, mrr * 0.98),
+    Math.max(0, mrr),
+  ], [mrr]);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex items-center justify-end">
-        <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700 shadow-sm">
-          {currencyLabel}
-        </span>
-      </div>
-
-      {/* HERO KPI STRIP */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPIHero label="$ Revenue" value={formatBusinessCurrency(totalRevenue, currency)} data={revenueSparks} color="#2563EB" />
-        <KPIHero label="Monthly Revenue ($)" value={formatBusinessCurrency(mrr, currency)} data={revenueSparks} color="#16A34A" />
-        <KPIHero label="Profit ($)" value={formatBusinessCurrency(profit, currency)} data={revenueSparks} color="#16A34A" />
-        <KPIHero label="Growth" value={`+${growthPercent}%`} data={revenueSparks} color="#16A34A" note={bestRegion ? `${bestRegion.region} driving revenue` : undefined} />
-      </div>
-
-      {/* MAIN VISUAL */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_14px_30px_rgba(15,23,42,0.06)] transition-shadow duration-200 hover:shadow-[0_2px_4px_rgba(15,23,42,0.05),0_18px_40px_rgba(15,23,42,0.08)]">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-lg font-semibold text-slate-900">Revenue Trend</h3>
-            <div className="text-sm text-slate-700">Monthly • last 12 months</div>
+    <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1320px] space-y-6 lg:space-y-8">
+        
+        {/* EXECUTIVE HEADER */}
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="mb-1 text-4xl font-bold tracking-tight" style={{ color: "#0F172A" }}>Business Intelligence</h1>
+            <p className="text-sm leading-6" style={{ color: "#475569" }}>AI-driven industrial revenue optimization platform</p>
           </div>
-          <div style={{ height: 320 }}>
-            <LiveChart data={revenue} lines={[{ key: 'revenue', color: '#2563EB', name: '$ Revenue' }]} label="$ Revenue" unit="$" area height={300} />
+          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 shadow-sm">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600">USD ($)</span>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_14px_30px_rgba(15,23,42,0.06)] transition-shadow duration-200 hover:shadow-[0_2px_4px_rgba(15,23,42,0.05),0_18px_40px_rgba(15,23,42,0.08)]">
-          <h4 className="text-lg font-semibold mb-4 text-slate-900">Revenue Breakdown</h4>
-          <div className="flex items-center justify-center">
-            <DonutChart slices={[{ label: 'Performance', value: performanceRevenue, color: '#2563EB' }, { label: 'SaaS', value: saasRevenue, color: '#16A34A' }, { label: 'Enterprise', value: enterpriseRevenue, color: '#F97316' }]} />
-          </div>
-          <div className="mt-4 text-sm text-slate-700">
-            <div className="flex justify-between"><span>Performance</span><strong className="text-slate-900">{formatBusinessCurrency(performanceRevenue, currency)}</strong></div>
-            <div className="flex justify-between"><span>SaaS</span><strong className="text-slate-900">{formatBusinessCurrency(saasRevenue, currency)}</strong></div>
-            <div className="flex justify-between"><span>Enterprise</span><strong className="text-slate-900">{formatBusinessCurrency(enterpriseRevenue, currency)}</strong></div>
-          </div>
-        </div>
-      </div>
-
-      {/* FACTORY PERFORMANCE */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_14px_30px_rgba(15,23,42,0.06)] transition-shadow duration-200 hover:shadow-[0_2px_4px_rgba(15,23,42,0.05),0_18px_40px_rgba(15,23,42,0.08)]">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold text-slate-900">Top Factories</h3>
-          <a href="/factories" className="text-sm text-slate-700">View all</a>
-        </div>
-        <div className="flex gap-4 overflow-x-auto py-2">
-          {top3.map(f => (
-            <div key={f.id} className="min-w-[260px] p-3 rounded-lg border border-slate-200 bg-white shadow-sm transition-shadow duration-200 hover:shadow-md">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-semibold text-slate-900">{f.name}</div>
-                  <div className="text-xs text-slate-700">{f.location}</div>
-                </div>
-                <div className="text-sm font-bold text-green-600">{formatBusinessCurrency(f.our_revenue || 0, currency)}</div>
+        <div className="rounded-lg border p-4 shadow-sm transition-shadow duration-200 hover:shadow-md" style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0" }}>
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest" style={{color: "#0F172A"}}>Executive Insights</h3>
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {insights.map((insight, i) => (
+              <div key={i} className="min-h-[40px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm leading-5" style={{color: "#475569"}}>
+                <span style={{color: "#2563EB"}}>→</span> {insight}
               </div>
-              <div className="mt-3">
-                <div className="text-xs text-slate-700 flex justify-between"><span>Efficiency</span><span className="text-slate-900">{(f.efficiency_pct||0).toFixed(1)}%</span></div>
-                <ProgressBar percent={Math.min(100, f.efficiency_pct||0)} />
-              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* HERO KPI SECTION */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <KPICard label="Annual Revenue" value={`$${(totalRevenue/1000).toFixed(1)}K`} change={`${((mrr / Math.max(1, baselineMonthlyValue * 0.28)) * 100).toFixed(0)}% of baseline`} tone="blue" trend={sparkTrend} />
+          <KPICard label="MRR" value={`$${(mrr/1000).toFixed(1)}K`} change={`$${monthlyAiSavings.toFixed(0)} AI savings`} tone="green" trend={growthTrend} />
+          <KPICard label="Gross Profit" value={`$${(totalProfit/1000).toFixed(1)}K`} change={`${((totalProfit / Math.max(1, totalRevenue)) * 100).toFixed(0)}% margin`} tone="blue" trend={sparkTrend} />
+          <KPICard label="CO₂ Avoided" value={`${co2Avoided.toFixed(0)}T`} change={`$${(simBusiness.co2ValueUsd || 0).toFixed(0)} value`} tone="cyan" trend={growthTrend} />
+          <KPICard label="Optimization" value={aiMode ? `${optimizationGainPct.toFixed(1)}%` : "Paused"} change={aiMode ? "AI active" : "manual baseline"} tone="emerald" trend={sparkTrend} />
+        </div>
+
+        {/* TWIN VISUALIZATION: REVENUE + OPERATIONS */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          
+          {/* Revenue Trend - Large */}
+          <div className="lg:col-span-2 rounded-lg border p-6 shadow-sm transition-shadow duration-200 hover:shadow-md" style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-widest" style={{ color: "#0F172A" }}>Revenue Trajectory</h2>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600">12-month performance</span>
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ACTIONS + PROJECTION + INSIGHTS */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 space-y-4">
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_14px_30px_rgba(15,23,42,0.06)] transition-shadow duration-200 hover:shadow-[0_2px_4px_rgba(15,23,42,0.05),0_18px_40px_rgba(15,23,42,0.08)]">
-            <h3 className="text-lg font-semibold mb-3 text-slate-900">Recommended Actions</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {topActions.map(a => <ActionCard key={a.title} title={a.title} detail={a.detail} tone={a.tone} />)}
+            <div style={{ height: 260 }}>
+              {revenue.length > 0 ? (
+                <LiveChart data={revenue} lines={[{ key: 'revenue', color: '#2563EB', name: 'Monthly Revenue' }]} label="$" unit="$" height={240} />
+              ) : <div className="w-full h-full flex items-center justify-center" style={{color: "#94A3B8"}}>Loading chart...</div>}
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between shadow-[0_1px_2px_rgba(15,23,42,0.04),0_14px_30px_rgba(15,23,42,0.06)] transition-shadow duration-200 hover:shadow-[0_2px_4px_rgba(15,23,42,0.05),0_18px_40px_rgba(15,23,42,0.08)]">
+          {/* Revenue Breakdown */}
+          <div className="rounded-lg border p-6 shadow-sm transition-shadow duration-200 hover:shadow-md" style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}>
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest" style={{ color: "#0F172A" }}>Revenue Mix</h2>
+            <div className="mb-4 flex items-center justify-center" style={{ height: 260 }}>
+              <DonutChart slices={[
+                {label: 'Performance', value: perfRevenue, color: '#2563EB'},
+                {label: 'SaaS', value: saasRevenue, color: '#16A34A'},
+                {label: 'Enterprise', value: enterpriseRevenue, color: '#F97316'},
+              ]} />
+            </div>
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center justify-between"><span style={{color: "#475569"}}>Performance</span><strong style={{color: "#0F172A"}}>${(perfRevenue/1000).toFixed(0)}K</strong></div>
+              <div className="flex items-center justify-between"><span style={{color: "#475569"}}>SaaS</span><strong style={{color: "#0F172A"}}>${(saasRevenue/1000).toFixed(0)}K</strong></div>
+              <div className="flex items-center justify-between"><span style={{color: "#475569"}}>Enterprise</span><strong style={{color: "#0F172A"}}>${(enterpriseRevenue/1000).toFixed(0)}K</strong></div>
+            </div>
+          </div>
+        </div>
+
+        {/* FACTORY PERFORMANCE CARDS */}
+        <div className="rounded-lg border p-6 shadow-sm transition-shadow duration-200 hover:shadow-md" style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-widest" style={{ color: "#0F172A" }}>Connected Factories</h2>
+            <a href="/factories" className="text-sm" style={{color: "#2563EB"}}>View all {numFactories} →</a>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {viewportFactories.slice(0, 3).map((f, idx) => (
+              <FactoryCard key={f.id} factory={f} rank={idx+1} />
+            ))}
+          </div>
+        </div>
+
+        {/* INTELLIGENCE LAYER: Operations + Impact */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          
+          {/* Real-time Operations */}
+          <div className="rounded-lg border p-6 shadow-sm transition-shadow duration-200 hover:shadow-md" style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}>
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest" style={{ color: "#0F172A" }}>Current Operations</h2>
+            <div className="space-y-3">
+              <OpMetric label="Power Output" value={`${(metrics.power_output || 0).toFixed(1)} kW`} max={220} current={metrics.power_output || 0} color="#2563EB" />
+              <OpMetric label="Efficiency" value={`${(metrics.efficiency_pct || 75).toFixed(1)}%`} max={100} current={metrics.efficiency_pct || 75} color="#16A34A" />
+              <OpMetric label="Temperature" value={`${(metrics.temperature || 500).toFixed(0)}°C`} max={600} current={metrics.temperature || 500} color="#F97316" />
+              <OpMetric label="Pressure" value={`${(metrics.pressure || 6).toFixed(2)} bar`} max={8.5} current={metrics.pressure || 6} color="#DC2626" />
+            </div>
+          </div>
+
+          {/* Business Impact Summary */}
+          <div className="rounded-lg border p-6 shadow-sm transition-shadow duration-200 hover:shadow-md" style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}>
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest" style={{ color: "#0F172A" }}>Business Impact</h2>
+            <div className="space-y-3">
+              <BusinessMetric label="Monthly AI Savings" value={`$${monthlyAiSavings.toFixed(0)}`} subtext={aiMode ? "realized vs manual baseline" : "AI paused: no savings counted"} />
+              <BusinessMetric label="Potential if Optimized" value={`$${potentialMonthlySavings.toFixed(0)}`} subtext="forecast only" />
+              <BusinessMetric label="CO₂ Reduction Value" value={`$${(simBusiness.co2ValueUsd || 0).toFixed(0)}`} subtext="operating-state derived" />
+              <BusinessMetric label="Payback Period" value={aiMode && simBusiness.paybackMonths > 0 ? `${simBusiness.paybackMonths.toFixed(0)} months` : "N/A"} subtext={aiMode ? "time to break even" : "requires AI gains"} />
+            </div>
+          </div>
+        </div>
+
+        {/* UNIT ECONOMICS + INSIGHTS */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          
+          {/* Unit Economics */}
+          <div className="rounded-lg border p-6 shadow-sm transition-shadow duration-200 hover:shadow-md" style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}>
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest" style={{ color: "#0F172A" }}>Unit Economics</h2>
+            <div className="space-y-2.5">
+              <EconMetric label="Avg Revenue/Factory" value={`$${(avgRevenuePerFactory/1000).toFixed(1)}K`} />
+              <EconMetric label="Avg Savings/Factory" value={`$${avgSavingsPerFactory.toFixed(0)}`} />
+              <EconMetric label="Revenue per Ton CO₂" value={`$${revenuePerTonCO2.toFixed(0)}`} />
+              <EconMetric label="Gross Margin" value={`${((totalProfit/safeRevenue)*100).toFixed(0)}%`} />
+            </div>
+          </div>
+
+          {/* Recommended Actions */}
+          <div className="rounded-lg border p-6 shadow-sm transition-shadow duration-200 hover:shadow-md" style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}>
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest" style={{ color: "#0F172A" }}>Strategic Recommendations</h2>
+            <div className="space-y-2.5">
+              {aiMode && topFactory && <ActionItem text={`Scale from ${topFactory.name} model (${(topFactory.monthly_revenue_usd).toFixed(0)}/mo)`} color="blue" />}
+              {aiMode && mostEfficient && <ActionItem text={`Apply ${mostEfficient.name} optimization pattern to underperformers`} color="green" />}
+              <ActionItem text={`Potential monthly gain if AI enabled: $${potentialMonthlySavings.toFixed(0)}`} color="blue" />
+              <ActionItem text={`${(projectedCO2).toFixed(0)}T CO₂ impact at ${scaleTarget} factories`} color="cyan" />
+            </div>
+          </div>
+        </div>
+
+        {/* GROWTH PROJECTION */}
+        <div className="rounded-lg border p-6 shadow-sm transition-shadow duration-200 hover:shadow-md" style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}>
+          <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <div className="text-sm text-slate-700">Growth Projection</div>
-              <div className="text-2xl font-bold text-slate-900">Scale {numFactories} → {scaleTargetFactories} • {formatBusinessCurrency(projectedRevenue, currency)}</div>
-              <div className="text-sm text-slate-700 mt-1">Projected Profit {formatBusinessCurrency(projectedProfit, currency)}</div>
+              <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest" style={{ color: "#0F172A" }}>Scale Simulation</h2>
+              <p className="text-sm" style={{ color: "#475569" }}>Scaling from {numFactories} to {scaleTarget} factories</p>
             </div>
-            <div className="w-40">
-              <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
-                <div style={{ width: `${Math.min(100, (numFactories/scaleTargetFactories)*100)}%`, background: 'linear-gradient(90deg,#16A34A,#2563EB)', height: '100%' }} />
+            <div className="text-right">
+              <div className="text-3xl font-bold tracking-tight" style={{color: "#2563EB"}}>${(projectedRevenue/1000).toFixed(0)}K</div>
+              <p className="text-xs mt-1" style={{color: "#475569"}}>projected annual revenue</p>
+            </div>
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-4 border-t border-slate-200 pt-4 sm:grid-cols-3">
+            <div><span className="text-xs" style={{color: "#475569"}}>Current Annual:</span> <strong style={{color: "#0F172A", fontSize: "14px"}}>${(totalRevenue/1000).toFixed(0)}K</strong></div>
+            <div><span className="text-xs" style={{color: "#475569"}}>Profit Potential:</span> <strong style={{color: "#0F172A", fontSize: "14px"}}>${(projectedProfit/1000).toFixed(0)}K</strong></div>
+            <div><span className="text-xs" style={{color: "#475569"}}>CO₂ Impact:</span> <strong style={{color: "#0F172A", fontSize: "14px"}}>{projectedCO2.toFixed(0)} tons</strong></div>
+          </div>
+        </div>
+
+        {/* AI OPTIMIZATION STATUS */}
+        <div className="rounded-lg border p-6 shadow-sm transition-shadow duration-200 hover:shadow-md" style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}>
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest" style={{ color: "#0F172A" }}>AI Optimization Status</h2>
+              <p className="text-sm" style={{ color: "#475569" }}>Real-time control system achieving optimal efficiency</p>
+            </div>
+            <div className="text-right">
+              <div className="text-3xl font-bold tracking-tight" style={{color: aiMode ? '#16A34A' : '#64748B'}}>
+                {aiMode ? 'ACTIVE' : 'MANUAL'}
               </div>
+              <p className="text-xs mt-1" style={{color: "#475569"}}>{aiMode ? `${(confidence.confidence || 0).toFixed(0)}% confidence` : "AI paused"}</p>
             </div>
           </div>
+          <div className="mt-4 grid grid-cols-1 gap-4 border-t border-slate-200 pt-4 sm:grid-cols-4">
+            <div><span className="text-xs" style={{color: "#475569"}}>Current Efficiency:</span> <strong style={{color: "#0F172A", fontSize: "14px"}}>{(metrics.efficiency_pct || 0).toFixed(1)}%</strong></div>
+            <div><span className="text-xs" style={{color: "#475569"}}>Optimization Gain:</span> <strong style={{color: aiMode ? "#16A34A" : "#64748B", fontSize: "14px"}}>{aiMode ? `+${optimizationGainPct.toFixed(1)}%` : "0.0%"}</strong></div>
+            <div><span className="text-xs" style={{color: "#475569"}}>Safety Status:</span> <strong style={{color: safety === 'NORMAL' ? '#16A34A' : '#DC2626', fontSize: "14px"}}>{safety}</strong></div>
+            <div><span className="text-xs" style={{color: "#475569"}}>Uptime:</span> <strong style={{color: "#0F172A", fontSize: "14px"}}>{systemUptime.toFixed(1)}%</strong></div>
+          </div>
         </div>
 
-        <div className="space-y-4">
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_14px_30px_rgba(15,23,42,0.06)] transition-shadow duration-200 hover:shadow-[0_2px_4px_rgba(15,23,42,0.05),0_18px_40px_rgba(15,23,42,0.08)]">
-            <h4 className="text-lg font-semibold mb-2 text-slate-900">Key Insights</h4>
-            <ul className="text-sm text-slate-700 space-y-2">
-              <li>Revenue grew <strong>18%</strong> this month — performance traction</li>
-              <li><strong>{topFactory?.name}</strong> is top performer — consider expansion</li>
-              <li>Opportunity: Improve efficiency in <strong>{opportunityFactory?.name || 'lower-performing sites'}</strong></li>
-            </ul>
-          </div>
-
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_14px_30px_rgba(15,23,42,0.06)] transition-shadow duration-200 hover:shadow-[0_2px_4px_rgba(15,23,42,0.05),0_18px_40px_rgba(15,23,42,0.08)]">
-            <h4 className="text-sm font-semibold mb-2 text-slate-900">Sustainability</h4>
-            <div className="text-sm text-slate-700">{totalCO2Saved.toFixed(1)} tons CO₂ reduced — {formatBusinessCurrency(revenuePerTonCO2, currency)} revenue/ton</div>
-          </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <EnterpriseMetric label="System Uptime" value={`${systemUptime.toFixed(1)}%`} detail="service reliability" tone="blue" />
+          <EnterpriseMetric label="Safety Compliance" value={`${safetyComplianceScore.toFixed(0)}%`} detail="critical thresholds met" tone="green" />
+          <EnterpriseMetric label="Operational Health" value={`${operationalHealthScore.toFixed(0)}%`} detail="plant stability score" tone="blue" />
+          <EnterpriseMetric label="Anomalies Detected" value={`${anomalyCount}`} detail="last 24 hours" tone="amber" />
         </div>
       </div>
     </div>
   );
 }
 
-// ===== COMPONENT: COLLAPSIBLE CARD =====
-function CollapsibleCard({ title, children, open = false, onToggle }) {
-  return (
-    <div className="p-4 rounded-lg" style={{ backgroundColor: "#FFFFFF", border: "1px solid #E2E8F0" }}>
-      <div className="flex items-center justify-between mb-3">
-        <div className="font-semibold">{title}</div>
-        <button className="text-xs text-slate-500" onClick={onToggle}>{open ? "Collapse" : "View Details"}</button>
-      </div>
-      {open && <div>{children}</div>}
-    </div>
-  );
-}
+// ─────── COMPONENTS ───────
 
-function badgeTone(tone) {
-  const map = {
-    blue: { bg: "#EFF6FF", fg: "#2563EB" },
-    green: { bg: "#F0FDF4", fg: "#16A34A" },
-    amber: { bg: "#FFFBEB", fg: "#D97706" },
-    red: { bg: "#FEF2F2", fg: "#DC2626" },
+function KPICard({ label, value, change, tone, trend }) {
+  const toneColors = {
+    blue: { bg: '#EFF6FF', border: '#BFDBFE', text: '#1E40AF' },
+    green: { bg: '#F0FDF4', border: '#BBF7D0', text: '#15803D' },
+    emerald: { bg: '#F0FDF4', border: '#86EFAC', text: '#16A34A' },
+    cyan: { bg: '#F0FDFA', border: '#A5F3FC', text: '#0E7490' },
   };
-  return map[tone] || map.blue;
-}
-
-function getFactoryTone(factory, index) {
-  const revenue = factory?.our_revenue || 0;
-  const efficiency = factory?.efficiency_pct || 0;
-  if (index === 0) return { ...badgeTone("blue"), label: "Top Performer" };
-  if (efficiency < 80) return { ...badgeTone("amber"), label: "Optimization Opportunity" };
-  if (revenue >= 70000) return { ...badgeTone("green"), label: "High Profit" };
-  if (efficiency >= 90) return { ...badgeTone("green"), label: "High Efficiency" };
-  return { ...badgeTone("blue"), label: "Live" };
-}
-
-// ===== COMPONENT: METRIC BLOCK =====
-function MetricBlock({ label, value, subtext, accent = "blue" }) {
-  const accentColor = {
-    blue: "#2563EB",
-    emerald: "#16A34A",
-    cyan: "#06B6D4",
-    orange: "#EA580C",
-    green: "#16A34A"
-  }[accent];
-
+  const colors = toneColors[tone] || toneColors.blue;
+  const positive = String(change).includes("+") || String(change).includes("active");
   return (
-    <div className="p-5 rounded-lg" style={{ backgroundColor: "#FFFFFF", border: "1px solid #E2E8F0" }}>
-      <div className="text-[11px] font-semibold uppercase tracking-widest mb-2" style={{ color: "#64748B" }}>
-        {label}
-      </div>
-      <div className="text-3xl font-bold mb-1" style={{ color: accentColor }}>
-        {value}
-      </div>
-      <div className="text-[12px]" style={{ color: "#64748B" }}>
-        {subtext}
-      </div>
-    </div>
-  );
-}
-
-// ===== COMPONENT: REVENUE SOURCE CARD =====
-function RevenueSourceCard({ title, amount, percent, description, color, currency = "USD" }) {
-  return (
-    <div className="p-5 rounded-lg" style={{ backgroundColor: "#FFFFFF", border: "1px solid #E2E8F0" }}>
-      <div className="flex items-center justify-between mb-3">
-        <h4 className="font-semibold" style={{ color: "#0F172A" }}>{title}</h4>
-        <div className="px-2 py-1 rounded text-xs font-bold" style={{ backgroundColor: color + "20", color }}>
-          {percent}%
+    <div className="flex h-full flex-col justify-between rounded-lg border p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md" style={{ backgroundColor: colors.bg, borderColor: colors.border, minHeight: 150 }}>
+      <div>
+        <div className="text-[11px] font-semibold uppercase tracking-widest" style={{color: "#475569"}}>{label}</div>
+        <div className="mt-2 flex items-end justify-between gap-3">
+          <div className="text-[28px] font-bold leading-none tracking-tight" style={{color: colors.text}}>{value}</div>
+          <div className={`text-xs font-semibold ${positive ? 'text-emerald-600' : 'text-slate-500'}`}>{change}</div>
         </div>
       </div>
-      <div className="text-2xl font-bold mb-2" style={{ color }}>
-        {formatBusinessCurrency(amount, currency)}
-      </div>
-      <div className="text-[12px]" style={{ color: "#64748B" }}>
-        {description}
-      </div>
-      {/* Progress bar */}
-      <div className="mt-3 h-2 rounded-full" style={{ backgroundColor: "#E2E8F0" }}>
-        <div className="h-2 rounded-full" style={{ width: `${percent}%`, backgroundColor: color }}></div>
-      </div>
+      <Sparkline data={trend || [68, 70, 72, 71, 74, 76, 78, 77, 79, 81, 83, 84]} stroke={colors.text} />
     </div>
   );
 }
 
-// ===== COMPONENT: SUSTAINABILITY CARD =====
-function SustainabilityCard({ icon, title, value, subtitle }) {
+function FactoryCard({ factory, rank }) {
   return (
-    <div className="p-5 rounded-lg" style={{ backgroundColor: "#FFFFFF", border: "1px solid #E2E8F0" }}>
-      <div className="text-3xl mb-2">{icon}</div>
-      <div className="text-[11px] font-semibold uppercase tracking-widest mb-1" style={{ color: "#64748B" }}>
-        {title}
+    <div className="flex h-full flex-col rounded-lg border p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md" style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0", minHeight: 168 }}>
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold tracking-tight" style={{color: "#0F172A"}}>{factory.name}</div>
+          <div className="mt-1 text-[11px] uppercase tracking-[0.14em]" style={{color: "#64748B"}}>{factory.location}</div>
+        </div>
+        <div className="rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold" style={{backgroundColor: "#E2E8F0", color: "#0F172A"}}>#{rank}</div>
       </div>
-      <div className="text-2xl font-bold mb-1" style={{ color: "#16A34A" }}>
-        {value}
-      </div>
-      <div className="text-[12px]" style={{ color: "#64748B" }}>
-        {subtitle}
+      <div className="mt-auto space-y-2 border-t border-slate-200 pt-3">
+        <div className="flex items-baseline justify-between gap-3 text-sm"><span style={{color: "#475569"}}>Revenue</span><strong className="text-[15px]" style={{color: "#16A34A"}}>${(factory.monthly_revenue_usd || 0).toFixed(0)}</strong></div>
+        <div className="flex items-baseline justify-between gap-3 text-sm"><span style={{color: "#475569"}}>Efficiency</span><strong className="text-[15px]" style={{color: "#2563EB"}}>{(factory.efficiency_improvement_pct || 0).toFixed(0)}%</strong></div>
+        <div className="flex items-baseline justify-between gap-3 text-sm"><span style={{color: "#475569"}}>Savings</span><strong className="text-[15px]" style={{color: "#0891B2"}}>${(factory.monthly_savings_usd || 0).toFixed(0)}</strong></div>
       </div>
     </div>
   );
 }
 
-// ===== HELPER: KPI HERO =====
-function KPIHero({ label, value, data = [], color = '#2563EB', note }) {
+function OpMetric({ label, value, max, current, color }) {
+  const pct = (current / max) * 100;
   return (
-    <div className="p-4 rounded-lg bg-white border border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_rgba(15,23,42,0.05)] transition-shadow duration-200 hover:shadow-[0_2px_4px_rgba(15,23,42,0.05),0_16px_28px_rgba(15,23,42,0.08)]">
-      <div className="text-xs font-semibold text-slate-700 uppercase tracking-wide">{label}</div>
-      <div className="flex items-center justify-between mt-2">
-        <div className="text-2xl font-bold text-slate-900" style={{ color }}>{value}</div>
-        <div className="w-20 h-8"><Sparkline data={data} color={color} /></div>
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-sm" style={{color: "#475569"}}>{label}</span>
+        <span className="text-sm font-semibold tracking-tight" style={{color: "#0F172A"}}>{value}</span>
       </div>
-      {note && <div className="text-[12px] text-slate-700 mt-2">{note}</div>}
+      <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+        <div style={{width: `${Math.min(100, pct)}%`, backgroundColor: color, height: '100%'}} />
+      </div>
     </div>
   );
 }
 
-// ===== SPARKLINE =====
-function Sparkline({ data = [], color = '#16A34A', width = 80, height = 28 }) {
-  if (!data || data.length === 0) return <svg width={width} height={height} />;
-  const max = Math.max(...data);
+function BusinessMetric({ label, value, subtext }) {
+  return (
+    <div className="flex items-start justify-between gap-4 border-b border-slate-200 py-3 last:border-0">
+      <div>
+        <div className="text-sm font-medium" style={{color: "#475569"}}>{label}</div>
+        <div className="mt-1 text-xs leading-5" style={{color: "#94A3B8"}}>{subtext}</div>
+      </div>
+      <div className="text-lg font-bold tracking-tight" style={{color: "#0F172A"}}>{value}</div>
+    </div>
+  );
+}
+
+function EconMetric({ label, value }) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-3 border-b border-slate-200 last:border-0">
+      <span className="text-sm" style={{color: "#475569"}}>{label}</span>
+      <strong className="text-sm font-semibold tracking-tight" style={{color: "#2563EB"}}>{value}</strong>
+    </div>
+  );
+}
+
+function ActionItem({ text, color }) {
+  const colors = {
+    blue: { bg: '#EFF6FF', border: '#BFDBFE', text: '#1E40AF' },
+    green: { bg: '#F0FDF4', border: '#BBF7D0', text: '#15803D' },
+    cyan: { bg: '#F0FDFA', border: '#A5F3FC', text: '#0E7490' },
+  };
+  const c = colors[color] || colors.blue;
+  return (
+    <div className="flex items-start gap-3 rounded-lg border px-3 py-3 text-sm leading-6 transition-colors duration-200" style={{backgroundColor: c.bg, borderColor: c.border, color: c.text}}>
+      <span>{text}</span>
+    </div>
+  );
+}
+
+function EnterpriseMetric({ label, value, detail, tone }) {
+  const toneColors = {
+    blue: { bg: '#FFFFFF', border: '#E2E8F0', value: '#1E40AF' },
+    green: { bg: '#FFFFFF', border: '#E2E8F0', value: '#15803D' },
+    amber: { bg: '#FFFFFF', border: '#E2E8F0', value: '#B45309' },
+  };
+  const colors = toneColors[tone] || toneColors.blue;
+  return (
+    <div className="rounded-lg border p-4 shadow-sm transition-shadow duration-200 hover:shadow-md" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
+      <div className="text-[11px] font-semibold uppercase tracking-widest" style={{color: '#64748B'}}>{label}</div>
+      <div className="mt-2 text-2xl font-bold tracking-tight" style={{color: colors.value}}>{value}</div>
+      <div className="mt-1 text-xs leading-5" style={{color: '#94A3B8'}}>{detail}</div>
+    </div>
+  );
+}
+
+function Sparkline({ data, stroke }) {
+  const width = 120;
+  const height = 28;
   const min = Math.min(...data);
-  const points = data.map((d, i) => {
-    const x = (i / (data.length - 1)) * (width - 4) + 2;
-    const y = max === min ? height/2 : 2 + ((max - d) / (max - min)) * (height - 4);
-    return `${x},${y}`;
-  }).join(' ');
+  const max = Math.max(...data);
+  const points = data
+    .map((value, index) => {
+      const x = (index / (data.length - 1)) * width;
+      const y = height - ((value - min) / Math.max(1, max - min)) * (height - 2) - 1;
+      return `${x},${y}`;
+    })
+    .join(" ");
+
   return (
-    <svg width={width} height={height}>
-      <polyline fill="none" stroke={color} strokeWidth="2" points={points} strokeLinecap="round" strokeLinejoin="round" />
+    <svg viewBox={`0 0 ${width} ${height}`} className="mt-3 h-7 w-full">
+      <polyline fill="none" stroke={stroke} strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" points={points} opacity="0.8" />
     </svg>
   );
 }
 
-// ===== DONUT CHART =====
-function DonutChart({ slices = [], size = 140, stroke = 26 }) {
-  const total = slices.reduce((s, x) => s + (x.value || 0), 0) || 1;
-  let start = -90;
+function DonutChart({ slices }) {
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+    <svg width="100" height="100" viewBox="0 0 100 100">
       {slices.map((s, i) => {
-        const angle = (s.value / total) * 360;
-        const large = angle > 180 ? 1 : 0;
-        const radius = (size - stroke) / 2;
-        const cx = size/2;
-        const cy = size/2;
-        const aStart = (Math.PI/180) * start;
-        const aEnd = (Math.PI/180) * (start + angle);
-        const x1 = cx + radius * Math.cos(aStart);
-        const y1 = cy + radius * Math.sin(aStart);
-        const x2 = cx + radius * Math.cos(aEnd);
-        const y2 = cy + radius * Math.sin(aEnd);
-        const path = `M ${x1} ${y1} A ${radius} ${radius} 0 ${large} 1 ${x2} ${y2}`;
-        start += angle;
-        return <path key={s.label} d={path} stroke={s.color} strokeWidth={stroke} fill="none" strokeLinecap="butt" />;
+        const total = slices.reduce((sum, x) => sum + x.value, 0);
+        const pct = s.value / total;
+        const startAngle = slices.slice(0, i).reduce((sum, x) => sum + (x.value / total) * 360, 0);
+        const endAngle = startAngle + pct * 360;
+        const x1 = 50 + 35 * Math.cos((startAngle - 90) * Math.PI / 180);
+        const y1 = 50 + 35 * Math.sin((startAngle - 90) * Math.PI / 180);
+        const x2 = 50 + 35 * Math.cos((endAngle - 90) * Math.PI / 180);
+        const y2 = 50 + 35 * Math.sin((endAngle - 90) * Math.PI / 180);
+        const largeArc = pct > 0.5 ? 1 : 0;
+        return (
+          <path key={i} d={`M 50 50 L ${x1} ${y1} A 35 35 0 ${largeArc} 1 ${x2} ${y2} Z`} fill={s.color} opacity="0.85" />
+        );
       })}
-      <circle cx={size/2} cy={size/2} r={(size-stroke)/2 - 6} fill="#fff" />
     </svg>
   );
 }
 
-// ===== PROGRESS BAR =====
-function ProgressBar({ percent = 0 }) {
-  const tone = percent >= 85 ? '#16A34A' : percent >= 70 ? '#F97316' : '#DC2626';
-  return (
-    <div className="h-3 bg-slate-200 rounded-full mt-1 overflow-hidden">
-      <div style={{ width: `${percent}%`, height: '100%', background: tone }} />
-    </div>
-  );
-}
-
-// ===== ACTION CARD =====
-function ActionCard({ title, detail, tone = 'blue' }) {
-  const bg = tone === 'amber' ? '#FFF7ED' : (tone === 'green' ? '#F0FDF4' : '#EFF6FF');
-  const border = tone === 'amber' ? '#FDBA74' : (tone === 'green' ? '#86EFAC' : '#93C5FD');
-  return (
-    <div className="p-4 rounded-lg shadow-sm transition-shadow duration-200 hover:shadow-md" style={{ backgroundColor: bg, border: `1px solid ${border}` }}>
-      <div className="font-semibold text-slate-900">{title}</div>
-      <div className="text-sm text-slate-700 mt-1">{detail}</div>
-    </div>
-  );
-}

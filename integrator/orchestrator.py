@@ -30,8 +30,7 @@ import httpx
 from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Optional, Dict
-import random
+from typing import Optional
 import datetime
 
 from config import (
@@ -45,6 +44,7 @@ from config import (
     ORCHESTRATOR_HOST,
     ORCHESTRATOR_PORT,
     SAFE_VALVE_POSITION,
+    SIM_AI_MODE_URL,
     SIM_CONTROL_URL,
     SIM_HEALTH_URL,
     SIM_METRICS_URL,
@@ -148,6 +148,7 @@ class Orchestrator:
         self.baseline_readings: list[float] = []
         self.ai_readings: list[float] = []
         self.baseline_snapshot_power: float | None = None
+        self.revenue_series: list[dict] = []
 
         self.tick_count: int = 0
         self.error_count: int = 0
@@ -217,17 +218,23 @@ class Orchestrator:
             "grid_cost_avoided_usd": business_metrics.grid_cost_avoided_usd,
             "monthly_savings_usd": business_metrics.monthly_savings_usd,
             "annual_savings_usd": business_metrics.annual_savings_usd,
+            "potential_monthly_savings_usd": business_metrics.potential_monthly_savings_usd,
             "co2_avoided_tons": business_metrics.co2_avoided_tons,
             "co2_value_usd": business_metrics.co2_value_usd,
             "efficiency_pct": business_metrics.efficiency_pct,
             "roi_pct": business_metrics.roi_pct,
             "payback_months": business_metrics.payback_months,
             "operational_health_pct": business_metrics.operational_health_pct,
+            "forecast_p10_monthly_savings_usd": business_metrics.forecast_p10_monthly_savings_usd,
+            "forecast_p50_monthly_savings_usd": business_metrics.forecast_p50_monthly_savings_usd,
+            "forecast_p90_monthly_savings_usd": business_metrics.forecast_p90_monthly_savings_usd,
+            "baseline_monthly_savings_usd": 0.0 if not self.mode_manager.ai_enabled else business_metrics.monthly_savings_usd,
         }
         
         # Update factory aggregator for current factory (factory 1 for now, can be extended)
         current_factory_id = 1
-        self.factory_aggregator.update_factory(current_factory_id, business_metrics)
+        baseline_power = sum(self.baseline_readings) / len(self.baseline_readings) if self.baseline_readings else metrics.get("power_output", 0)
+        self.factory_aggregator.update_factory(current_factory_id, business_metrics, baseline_power_kw=baseline_power)
 
         # 2. Collect baseline (when AI is off)
         if not self.mode_manager.ai_enabled:
@@ -260,12 +267,13 @@ class Orchestrator:
 
         # 7. Confidence tracking
         predicted = decision.get("predicted_power")
-        conf = self.confidence.update(predicted, power)
+        conf = self.confidence.update(predicted, power) if predicted is not None else self.confidence.get_report().get("confidence", 0)
         decision["confidence"] = conf
 
         # Confidence-based auto-disable
         if (
             self.mode_manager.mode == "ACTIVE"
+            and predicted is not None
             and not self.confidence.should_use_ai()
         ):
             self.mode_manager.enter_fallback("Low confidence")
@@ -279,6 +287,11 @@ class Orchestrator:
                     self.mode_manager.attempt_recovery()
 
         self.last_decision = decision
+
+        if self.mode_manager.ai_enabled:
+            self.ai_readings.append(power)
+        else:
+            self.baseline_readings.append(power)
 
         # 8. History
         entry = {
@@ -301,6 +314,7 @@ class Orchestrator:
             "revenue_usd": business_metrics.total_hourly_revenue_usd,
             "savings_usd": business_metrics.grid_cost_avoided_usd,
             "co2_avoided_tons": business_metrics.co2_avoided_tons,
+            "monthly_savings_projection_usd": business_metrics.monthly_savings_usd,
         }
         self.history.append(entry)
         if len(self.history) > MAX_HISTORY:
@@ -488,29 +502,29 @@ async def get_full_state():
     }
 
 
-    # ── Business / SaaS demo endpoints (NOW DERIVED FROM PHYSICS) ──
+# ── Business / SaaS demo endpoints (NOW DERIVED FROM PHYSICS) ──
 
 
-    class FactorySummary(BaseModel):
-        id: int
-        name: str
-        location: str
-        efficiency_improvement_pct: float
-        monthly_savings_usd: float
-        monthly_revenue_usd: float
-        total_savings_usd: float
-        total_revenue_usd: float
-        co2_avoided_tons: float
-        roi_pct: float
-        kwh_generated: float
+class FactorySummary(BaseModel):
+    id: int
+    name: str
+    location: str
+    efficiency_improvement_pct: float
+    monthly_savings_usd: float
+    monthly_revenue_usd: float
+    total_savings_usd: float
+    total_revenue_usd: float
+    co2_avoided_tons: float
+    roi_pct: float
+    kwh_generated: float
 
 
-    class BusinessOverview(BaseModel):
-        total_revenue_usd: float
-        mrr_usd: float
-        total_factories: int
-        global_co2_tons: float
-        total_energy_kwh: float
+class BusinessOverview(BaseModel):
+    total_revenue_usd: float
+    mrr_usd: float
+    total_factories: int
+    global_co2_tons: float
+    total_energy_kwh: float
 
 
 @app.get("/api/factories", summary="List factories", tags=["Business"])
@@ -539,11 +553,20 @@ async def get_factory(factory_id: int):
             "pressure": 6.0,
         }
 
-    baseline_power = 160.0  # kW baseline (no optimization)
-    optimized_power = metrics.get("power_output", 180.0)
-    energy_saved_kwh = max(0, (optimized_power - baseline_power) * 24 * 30)  # monthly
+    baseline_power = orchestrator.get_comparison().get("baseline_avg_power", metrics.get("power_output", 0))
+    optimized_power = metrics.get("power_output", baseline_power)
+    energy_saved_kwh = max(0, (optimized_power - baseline_power) * 24 * 30)
     monthly_savings = factory["monthly_savings_usd"]
     monthly_revenue = factory["monthly_revenue_usd"]
+
+    ai_insights = []
+    if orchestrator.mode_manager.ai_enabled:
+        ai_insights.append(f"Observed uplift vs baseline: {max(0.0, (optimized_power - baseline_power)):.1f} kW")
+        ai_insights.append(f"Projected monthly savings (P50): ${orchestrator.last_business_metrics.get('forecast_p50_monthly_savings_usd', 0):.0f}")
+        ai_insights.append(f"Forecast band P10-P90: ${orchestrator.last_business_metrics.get('forecast_p10_monthly_savings_usd', 0):.0f} to ${orchestrator.last_business_metrics.get('forecast_p90_monthly_savings_usd', 0):.0f}")
+    else:
+        ai_insights.append("Manual baseline mode active: realized AI savings are zero.")
+        ai_insights.append(f"Potential monthly savings if AI enabled: ${orchestrator.last_business_metrics.get('potential_monthly_savings_usd', 0):.0f}")
 
     return {
         **factory,
@@ -556,11 +579,7 @@ async def get_factory(factory_id: int):
         "current_efficiency_pct": metrics.get("efficiency_pct", 75.0),
         "current_temperature_c": metrics.get("temperature", 500),
         "current_pressure_bar": metrics.get("pressure", 6.0),
-        "ai_insights": [
-            "Valve optimization improving efficiency by 8-15% this month",
-            "Pressure management preventing safety overrides",
-            "CO2 credits accumulating: $" + str(int(factory["co2_avoided_tons"] * 15)),
-        ],
+        "ai_insights": ai_insights,
     }
 
 
@@ -568,45 +587,49 @@ async def get_factory(factory_id: int):
 async def business_overview():
     """Return DERIVED aggregate revenue + sustainability metrics."""
     summary = orchestrator.factory_aggregator.get_summary()
-    
-    # Current month revenue trend (derived from actual energy generation)
+
     revenue_trend = []
     savings_trend = []
-    
-    # Build historical trend from history data
-    if orchestrator.history:
-        # Group by day and calculate daily totals
-        daily_revenue = {}
-        daily_savings = {}
-        
-        for entry in orchestrator.history:
-            ts = entry.get("timestamp", time.time())
-            date_key = datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
-            daily_revenue[date_key] = daily_revenue.get(date_key, 0) + entry.get("revenue_usd", 0)
-            daily_savings[date_key] = daily_savings.get(date_key, 0) + entry.get("savings_usd", 0)
-        
-        # Convert to monthly view (last 12 months)
-        for i in range(12):
-            month = (datetime.date.today() - datetime.timedelta(days=30 * (11 - i))).strftime("%Y-%m")
-            # Estimate based on daily data (rough projection)
-            estimated_revenue = (summary["total_revenue_usd"] / max(1, len(orchestrator.history))) * 30 * (i + 1)
-            estimated_savings = (summary["total_savings_usd"] / max(1, len(orchestrator.history))) * 30 * (i + 1)
-            revenue_trend.append({"month": month, "value": round(estimated_revenue, 2)})
-            savings_trend.append({"month": month, "value": round(estimated_savings, 2)})
+    monthly_buckets = {}
+    for entry in orchestrator.history:
+        ts = entry.get("timestamp", time.time())
+        month_key = datetime.datetime.fromtimestamp(ts).strftime("%Y-%m")
+        bucket = monthly_buckets.setdefault(month_key, {"revenue": 0.0, "savings": 0.0, "samples": 0})
+        bucket["revenue"] += entry.get("revenue_usd", 0.0)
+        bucket["savings"] += entry.get("savings_usd", 0.0)
+        bucket["samples"] += 1
+
+    sorted_months = sorted(monthly_buckets.keys())
+    for month in sorted_months[-12:]:
+        item = monthly_buckets[month]
+        factor = (3600.0 / CONTROL_INTERVAL) * 24.0 * 30.0
+        # Convert per-tick realization to monthly equivalent using observed cadence.
+        monthly_revenue = (item["revenue"] / max(1, item["samples"])) * factor
+        monthly_savings = (item["savings"] / max(1, item["samples"])) * factor
+        revenue_trend.append({"month": month, "value": round(monthly_revenue, 2)})
+        savings_trend.append({"month": month, "value": round(monthly_savings, 2)})
+
+    if not revenue_trend:
+        current_month = datetime.date.today().strftime("%Y-%m")
+        revenue_trend.append({"month": current_month, "value": round(summary["saas_revenue_monthly"], 2)})
+        savings_trend.append({"month": current_month, "value": round(orchestrator.last_business_metrics.get("monthly_savings_usd", 0.0), 2)})
     
     return {
         "total_revenue_usd": summary["total_revenue_usd"],
-        "mrr_usd": summary["saas_revenue_monthly"] + (summary["performance_revenue_usd"] / 12),
+        "mrr_usd": summary["saas_revenue_monthly"] + max(0.0, orchestrator.last_business_metrics.get("monthly_savings_usd", 0.0) * 0.2),
         "revenue_split": {
             "saas": summary["saas_revenue_monthly"],
-            "performance": summary["performance_revenue_usd"],
+            "performance": max(0.0, orchestrator.last_business_metrics.get("monthly_savings_usd", 0.0) * 0.2),
         },
         "total_factories": summary["total_factories"],
         "global_co2_tons": summary["total_co2_avoided_tons"],
         "total_energy_kwh": summary["total_kwh_generated"],
-        "monthly_revenue": summary["saas_revenue_monthly"],
+        "monthly_revenue": summary["saas_revenue_monthly"] + max(0.0, orchestrator.last_business_metrics.get("monthly_savings_usd", 0.0) * 0.2),
         "total_energy_saved_kwh": summary["total_kwh_generated"],
         "co2_reduced_tons": summary["total_co2_avoided_tons"],
+        "forecast_p10_monthly_savings_usd": orchestrator.last_business_metrics.get("forecast_p10_monthly_savings_usd", 0.0),
+        "forecast_p50_monthly_savings_usd": orchestrator.last_business_metrics.get("forecast_p50_monthly_savings_usd", 0.0),
+        "forecast_p90_monthly_savings_usd": orchestrator.last_business_metrics.get("forecast_p90_monthly_savings_usd", 0.0),
         "revenue_trend": revenue_trend,
         "savings_trend": savings_trend,
     }
@@ -617,21 +640,23 @@ async def revenue_timeseries(months: int = Query(default=12, ge=3, le=36)):
     """Return DERIVED monthly revenue timeseries."""
     now = datetime.date.today()
     data = []
-    
-    # Use actual revenue data from history if available
-    total_history_revenue = 0
-    if orchestrator.history:
-        total_history_revenue = sum(entry.get("revenue_usd", 0) for entry in orchestrator.history)
-    
-    # Estimate based on average
-    avg_revenue = total_history_revenue / max(1, len(orchestrator.history)) if orchestrator.history else 100
-    
-    base = avg_revenue * 30  # Monthly estimate
+
+    # Build realized monthly equivalent from observed history cadence.
+    avg_tick_revenue = (
+        sum(entry.get("revenue_usd", 0.0) for entry in orchestrator.history) / max(1, len(orchestrator.history))
+        if orchestrator.history else 0.0
+    )
+    monthly_realized = avg_tick_revenue * (3600.0 / CONTROL_INTERVAL) * 24.0 * 30.0
+    monthly_saas = len(orchestrator.factory_aggregator.factories) * orchestrator.business_calculator.assumptions.saas_monthly_fee_usd
+    monthly_base = monthly_realized + monthly_saas
+
+    # Derive trend from measured efficiency drift instead of fixed growth constants.
+    eff = orchestrator.last_metrics.get("efficiency_pct", 75.0) if orchestrator.last_metrics else 75.0
+    monthly_growth = max(-0.01, min(0.02, (eff - orchestrator.business_calculator.assumptions.baseline_efficiency_pct) / 1000.0))
     for i in range(months):
         month = (now - datetime.timedelta(days=30 * (months - i - 1))).strftime("%Y-%m")
-        # Add slight growth to projection
-        growth = base * ((1 + 0.03) ** i)  # 3% monthly growth
-        data.append({"month": month, "revenue": round(growth, 2)})
+        projected = monthly_base * ((1 + monthly_growth) ** i)
+        data.append({"month": month, "revenue": round(projected, 2)})
     return data
 
 
@@ -647,6 +672,13 @@ async def toggle_ai(body: AIToggleRequest):
         orchestrator.mode_manager.enable_ai()
     else:
         orchestrator.mode_manager.disable_ai()
+
+    # Keep the simulation backend's own auto-controller in sync with the orchestrator state.
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            await client.post(SIM_AI_MODE_URL, params={"enabled": body.enable})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Failed to propagate AI mode to simulation backend: %s", exc)
 
     return {
         "ai_mode": orchestrator.mode_manager.ai_enabled,

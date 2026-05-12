@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { useMetrics, useHistory, useComparison } from "../hooks/useMetrics";
+import { useSimulation } from "../context/SimulationContext";
 import { fetchFactory } from "../services/api";
 import { THEME } from "../constants/theme";
 import KPICard from "../components/KPICard";
@@ -18,16 +18,15 @@ const TARGET_EFFICIENCY = 92;
 
 export default function FactoryDetail() {
   const { id } = useParams();
-  const { state, connected } = useMetrics(1000);
-  const history = useHistory(2000, 120);
-  const comparison = useComparison(3000);
   const [factory, setFactory] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const metrics = state?.metrics || {};
-  const safety = state?.safety_level ?? "NORMAL";
-  const effectiveAI = state?.ai_mode ?? false;
-  const safetyStat = state?.confidence || {};
+  const { getFactory, toggleAI, aiEnabled, safetyState, optimizationMetrics, business } = useSimulation();
+  const sim = getFactory(id);
+  const safety = safetyState?.level ?? "NORMAL";
+  const effectiveAI = aiEnabled;
+  const safetyStat = { stats: { total_overrides: safetyState?.protected ? 1 : 0 } };
+  const simMetrics = optimizationMetrics;
 
   useEffect(() => {
     let active = true;
@@ -44,71 +43,93 @@ export default function FactoryDetail() {
     };
   }, [id]);
 
-  const insights = factory?.ai_insights ?? [];
+  const insights = effectiveAI
+    ? (sim?.recommendations || []).map((r) => `${r.text} (confidence ${r.confidence || 80}%)`).slice(0, 4)
+    : [];
   const revenueTrend = useMemo(() => {
-    const base = factory?.monthly_savings ?? 0;
-    return history.slice(-12).map((item, index) => ({
+    const baselineValue = business?.baselineMonthlyValueUsd || 0;
+    const realizedSavings = effectiveAI ? (business?.monthlySavingsUsd || 0) : 0;
+    const potentialSavings = business?.potentialMonthlySavingsUsd || 0;
+    return Array.from({ length: 12 }, (_, index) => ({
       tick: index + 1,
-      month: item.tick,
-      current: base > 0 ? convertFromINR(Math.max(0, base * (0.18 + index * 0.01))) : 0,
-      optimized: base > 0 ? convertFromINR(Math.max(0, base * (0.18 + index * 0.01) * 1.18)) : 0,
+      month: index + 1,
+      current: Math.max(0, (baselineValue + realizedSavings) * (0.92 + index * 0.01)),
+      optimized: Math.max(0, (baselineValue + realizedSavings + potentialSavings) * (0.92 + index * 0.01)),
     }));
-  }, [factory, history]);
+  }, [effectiveAI, business]);
 
-  const currentRevenueUsd = convertFromINR(factory?.our_revenue || 0);
-  const monthlySavingsUsd = convertFromINR(factory?.monthly_savings || 0);
-  const potentialSavingsUsd = convertFromINR((factory?.monthly_savings || 0) * (TARGET_EFFICIENCY / Math.max(1, factory?.efficiency_pct || 1)));
-  const lostOpportunityUsd = Math.max(0, potentialSavingsUsd - monthlySavingsUsd);
+  const powerTrend = useMemo(() => {
+    const baselinePower = Math.max(0, simMetrics.power_output - (effectiveAI ? Math.max(0, simMetrics.power_output * 0.06) : 0));
+    const optimizedPower = Math.max(simMetrics.power_output, baselinePower + Math.max(0, (business?.potentialMonthlySavingsUsd || 0) / 3500));
+    return Array.from({ length: 120 }, (_, index) => {
+      const wave = Math.sin(index / 12) * 2.4;
+      const drift = Math.max(0, index - 90) * 0.06;
+      const current = Math.max(0, simMetrics.power_output + wave - drift);
+      return {
+        tick: index,
+        power_output: current,
+        predicted_power: Math.max(0, current + (effectiveAI ? 1.4 : 0.2)),
+        optimized_power: optimizedPower,
+        loss_point: index === 24 || index === 72 ? Math.max(0, baselinePower - 3) : null,
+      };
+    });
+  }, [effectiveAI, business?.potentialMonthlySavingsUsd, simMetrics.power_output]);
+
+  const monthlySavingsUsd = effectiveAI ? (business?.monthlySavingsUsd || 0) : 0;
+  const currentRevenueUsd = business?.mrrUsd || 0;
+  const potentialSavingsUsd = business?.potentialMonthlySavingsUsd || 0;
+  const lostOpportunityUsd = potentialSavingsUsd;
   const profitImpactUsd = Math.max(0, monthlySavingsUsd - lostOpportunityUsd * 0.35);
-  const status = factory?.efficiency_pct >= 90 && String(factory?.status || "").toLowerCase() !== "warning"
+  const status = simMetrics.efficiency_pct >= 90 && String(factory?.status || "").toLowerCase() !== "warning"
     ? "Optimized"
-    : factory?.efficiency_pct >= 80
+    : simMetrics.efficiency_pct >= 80
       ? "Needs Attention"
       : "Critical";
   const aiStatus = effectiveAI ? "AI enabled" : "AI paused";
-  const powerCostPerDay = (metrics.power_output || 0) * 24 * USD_ELECTRICITY_RATE;
-  const efficiencyLossPct = Math.max(0, TARGET_EFFICIENCY - (factory?.efficiency_pct || 0));
-  const operationalRiskPct = Math.min(100, Math.max(5, 100 - (factory?.efficiency_pct || 0)));
-  const optimizedPower = Math.max(0, (metrics.power_output || 0) * (1 + Math.min(0.12, efficiencyLossPct / 100)));
-  const optimizedRevenueUsd = monthlySavingsUsd + lostOpportunityUsd;
+  const powerCostPerDay = (simMetrics.power_output || 210) * 24 * USD_ELECTRICITY_RATE;
+  const efficiencyLossPct = Math.max(0, TARGET_EFFICIENCY - (simMetrics.efficiency_pct || 76));
+  const operationalRiskPct = Math.min(100, Math.max(5, 100 - (simMetrics.efficiency_pct || 76)));
+  const optimizedPower = Math.max(0, simMetrics.power_output + Math.max(0, potentialSavingsUsd / 3500));
+  const optimizedRevenueUsd = currentRevenueUsd + potentialSavingsUsd;
 
-  const recommendationCards = [
+  const recommendationCards = effectiveAI ? [
     {
       title: "Raise boiler efficiency",
-      impact: formatBusinessCurrency(lostOpportunityUsd * 0.45),
-      confidence: 94,
+      impact: formatBusinessCurrency(potentialSavingsUsd * 0.35),
+      confidence: 82,
       detail: "Trim thermal losses and improve steam utilization.",
     },
     {
       title: "Stabilize pressure band",
-      impact: formatBusinessCurrency(Math.max(0, lostOpportunityUsd * 0.25)),
-      confidence: 88,
+      impact: formatBusinessCurrency(Math.max(0, potentialSavingsUsd * 0.24)),
+      confidence: 79,
       detail: "Reduce operational waste and protect output consistency.",
     },
     {
       title: "Shift to optimized load",
-      impact: formatBusinessCurrency(Math.max(0, lostOpportunityUsd * 0.3)),
-      confidence: 91,
+      impact: formatBusinessCurrency(Math.max(0, potentialSavingsUsd * 0.18)),
+      confidence: 84,
       detail: "Move into the high-yield operating window faster.",
     },
-  ];
+  ] : [];
 
   const alerts = [
-    factory?.efficiency_pct < 80 && {
+    simMetrics.efficiency_pct < 80 && {
       tone: "red",
       title: "Low efficiency threshold breached",
       detail: `Estimated monthly loss ${formatBusinessCurrency(lostOpportunityUsd)}`,
     },
-    (metrics.temperature || 0) > 540 && {
+    ((sim?.alerts || []).length > 0 ? false : (simMetrics.temperature || 0) > 540) && {
       tone: "amber",
       title: "Temperature above preferred range",
       detail: `Potential financial drag ${formatBusinessCurrency(potentialSavingsUsd * 0.08)}`,
     },
-    (metrics.pressure || 0) > 6.8 && {
+    ((sim?.alerts || []).length > 0 ? false : (simMetrics.pressure || 0) > 6.8) && {
       tone: "amber",
       title: "Pressure volatility detected",
       detail: `Risk-adjusted loss ${formatBusinessCurrency(potentialSavingsUsd * 0.05)}`,
     },
+    ...(sim?.alerts || []).map((a) => ({ tone: a.level === "critical" ? "red" : "amber", title: a.level === "critical" ? "Critical safety protection" : "Safety warning", detail: a.message })),
   ].filter(Boolean);
 
   if (loading) {
@@ -134,8 +155,8 @@ export default function FactoryDetail() {
 
       {/* Business Summary */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <SummaryCard label="Factory Status" value={status} subtext={factory.efficiency_pct >= 90 ? "Optimized for profit" : "Needs business attention"} tone={status === "Optimized" ? "green" : status === "Needs Attention" ? "amber" : "red"} />
-        <SummaryCard label="Monthly Profit Impact" value={formatBusinessCurrency(profitImpactUsd)} subtext="Net contribution after losses" tone="green" />
+        <SummaryCard label="Factory Status" value={status} subtext={simMetrics.efficiency_pct >= 90 ? "Optimized for profit" : "Needs business attention"} tone={status === "Optimized" ? "green" : status === "Needs Attention" ? "amber" : "red"} />
+        <SummaryCard label="Monthly Profit Impact" value={formatBusinessCurrency(profitImpactUsd)} subtext={effectiveAI ? "AI-derived impact" : "Manual baseline (no AI gains)"} tone="green" />
         <SummaryCard label="Lost Opportunity" value={formatBusinessCurrency(lostOpportunityUsd)} subtext="Delta to optimized operation" tone="red" />
         <SummaryCard label="AI Status" value={aiStatus} subtext={effectiveAI ? "Recommendations are live" : "Operating in manual mode"} tone={effectiveAI ? "green" : "amber"} />
       </div>
@@ -149,7 +170,7 @@ export default function FactoryDetail() {
         transition={{ duration: 0.4 }}
       >
         <div className="h-[500px]">
-          <FactoryScene metrics={metrics} aiActive={effectiveAI} />
+          <FactoryScene metrics={simMetrics} aiActive={effectiveAI} />
         </div>
       </motion.div>
 
@@ -160,8 +181,8 @@ export default function FactoryDetail() {
           <KPICard label="Power" value={powerCostPerDay} unit="/day" icon={IconBolt} color="blue" />
           <KPICard label="Temperature" value={efficiencyLossPct} unit="% loss" icon={IconThermometer} color="orange" />
           <KPICard label="Pressure" value={operationalRiskPct} unit="% risk" icon={IconGauge} color="cyan" />
-          <KPICard label="Valve Position" value={metrics.valve_position} unit="%" icon={IconValve} color="emerald" />
-          <KPICard label="Efficiency" value={factory.efficiency_pct} unit="%" color="purple" />
+          <KPICard label="Valve Position" value={simMetrics.valve_position} unit="%" icon={IconValve} color="emerald" />
+          <KPICard label="Efficiency" value={simMetrics.efficiency_pct} unit="%" color="purple" />
         </div>
       </div>
 
@@ -188,14 +209,14 @@ export default function FactoryDetail() {
               <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600">Business view</span>
             </div>
             <div className="space-y-4">
-              <EconomicsRow label="Savings generated ($)" value={formatBusinessCurrency(factory.monthly_savings)} accent="text-green-600" />
-              <EconomicsRow label="Our revenue ($)" value={formatBusinessCurrency(factory.our_revenue)} accent="text-blue-600" />
+              <EconomicsRow label="Savings generated ($)" value={formatBusinessCurrency(monthlySavingsUsd)} accent="text-green-600" />
+              <EconomicsRow label="Our revenue ($)" value={formatBusinessCurrency(currentRevenueUsd)} accent="text-blue-600" />
               <EconomicsRow label="Potential if optimized ($)" value={formatBusinessCurrency(optimizedRevenueUsd)} accent="text-green-600" />
               <EconomicsRow label="Lost opportunity ($)" value={formatBusinessCurrency(lostOpportunityUsd)} accent="text-red-600" />
             </div>
           </div>
 
-          <div className="rounded-lg border p-6" style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}>
+          {effectiveAI && <div className="rounded-lg border p-6" style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}>
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-sm font-semibold uppercase tracking-widest" style={{ color: "#0F172A" }}>AI Recommended Actions</h2>
               <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600">Apply Optimization</span>
@@ -214,30 +235,26 @@ export default function FactoryDetail() {
                 </div>
               ))}
             </div>
-          </div>
+          </div>}
 
           {/* Power Trend Chart */}
           <div className="rounded-lg border p-6" style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}>
             <h2 className="text-sm font-semibold uppercase tracking-widest mb-3" style={{ color: "#0F172A" }}>Smart Graph</h2>
             <p className="text-[13px] mb-4" style={{ color: "#475569" }}>Current vs AI optimized, with inefficiency points and prediction trend</p>
             <LiveChart
-              data={history.map((item, index) => ({
-                ...item,
-                optimized_power: Math.max(item.power_output || 0, item.predicted_power || 0) * 1.05,
-                loss_point: index === 24 || index === 72 ? (item.power_output || 0) * 0.88 : null,
-              }))}
+              data={powerTrend}
               lines={[
                 { key: "power_output", color: THEME.chart.power, name: "Current" },
-                { key: "predicted_power", color: THEME.chart.predicted, name: "AI Forecast" },
-                { key: "optimized_power", color: "#16A34A", name: "AI Optimized" },
+                { key: "predicted_power", color: THEME.chart.predicted, name: effectiveAI ? "AI Forecast" : "Forecast" },
+                { key: "optimized_power", color: "#16A34A", name: effectiveAI ? "AI Optimized" : "Potential" },
               ]}
               label=""
               unit="kW"
               area
               height={280}
               annotations={[
-                { x: 24, y: (history[24]?.power_output || 0) * 0.88, label: "Inefficiency", color: "#F97316" },
-                { x: 72, y: (history[72]?.power_output || 0) * 0.88, label: "Loss point", color: "#DC2626" },
+                { x: 24, y: powerTrend[24]?.loss_point || 0, label: "Inefficiency", color: "#F97316" },
+                { x: 72, y: powerTrend[72]?.loss_point || 0, label: "Loss point", color: "#DC2626" },
               ]}
             />
           </div>
@@ -259,14 +276,16 @@ export default function FactoryDetail() {
           <div className="rounded-lg border p-6" style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}>
             <h2 className="text-sm font-semibold uppercase tracking-widest mb-4" style={{ color: "#0F172A" }}>Before vs After</h2>
             <ComparisonPanel comparison={{
-              baseline_avg_power: metrics.power_output || 0,
+              baseline_avg_power: simMetrics.power_output || 0,
               ai_avg_power: optimizedPower,
-              improvement_pct: metrics.power_output ? ((optimizedPower - metrics.power_output) / Math.max(1, metrics.power_output)) * 100 : 0,
-              baseline_samples: history.length,
-              ai_samples: history.length,
+              improvement_pct: effectiveAI && simMetrics.power_output ? ((optimizedPower - simMetrics.power_output) / Math.max(1, simMetrics.power_output)) * 100 : 0,
+              baseline_samples: powerTrend.length,
+              ai_samples: powerTrend.length,
             }} />
-            <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-              Estimated savings from AI optimization: <strong>{formatBusinessCurrency(lostOpportunityUsd)}</strong>
+            <div className={`mt-4 rounded-lg border p-4 text-sm ${effectiveAI ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
+              {effectiveAI
+                ? <>Estimated remaining savings from AI optimization: <strong>{formatBusinessCurrency(lostOpportunityUsd)}</strong></>
+                : <>AI is paused. Potential if optimized: <strong>{formatBusinessCurrency(potentialSavingsUsd)}</strong></>}
             </div>
           </div>
         </motion.div>
@@ -279,14 +298,14 @@ export default function FactoryDetail() {
           transition={{ duration: 0.4, delay: 0.2 }}
         >
           {/* AI Toggle */}
-          <AIToggle enabled={effectiveAI} onToggle={() => {}} />
+          <AIToggle enabled={effectiveAI} onToggle={(next) => toggleAI(next)} />
 
           {/* Safety Card */}
           <SafetyIndicator
             level={safety}
             overrides={safetyStat?.stats?.total_overrides ?? 0}
-            pressureHeadroom={8.0 - (metrics.pressure ?? 5)}
-            tempHeadroom={590 - (metrics.temperature ?? 450)}
+            pressureHeadroom={8.0 - (simMetrics.pressure ?? 5)}
+            tempHeadroom={590 - (simMetrics.temperature ?? 450)}
           />
 
           <div className="rounded-lg border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "#FFFFFF" }}>
@@ -318,7 +337,13 @@ export default function FactoryDetail() {
           )}
 
           {/* Comparison */}
-          <ComparisonPanel comparison={comparison} />
+          <ComparisonPanel comparison={{
+            baseline_avg_power: simMetrics.power_output || 0,
+            ai_avg_power: optimizedPower,
+            improvement_pct: effectiveAI && simMetrics.power_output ? ((optimizedPower - simMetrics.power_output) / Math.max(1, simMetrics.power_output)) * 100 : 0,
+            baseline_samples: powerTrend.length,
+            ai_samples: powerTrend.length,
+          }} />
         </motion.div>
       </div>
     </div>

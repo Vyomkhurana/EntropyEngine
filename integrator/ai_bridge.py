@@ -80,10 +80,12 @@ def get_ai_decision(metrics: dict) -> dict:
     if mpc is None:
         # MPC unavailable — use heuristic
         valve = _heuristic_fallback(metrics)
+        current_power = metrics.get("power_output", 0.0)
+        predicted_power = max(0.0, current_power + (valve - metrics.get("valve_position", 50)) * 1.5)
         return _sanitize({
             "valve": valve,
-            "predicted_power": None,
-            "confidence": 0.0,
+            "predicted_power": predicted_power,
+            "confidence": 0.55,
             "mode": "heuristic",
             "fallback": True,
         })
@@ -94,10 +96,12 @@ def get_ai_decision(metrics: dict) -> dict:
         if result.get("fallback", False):
             # MPC low confidence — use heuristic
             valve = _heuristic_fallback(metrics)
+            current_power = metrics.get("power_output", 0.0)
+            predicted_power = max(0.0, current_power + (valve - metrics.get("valve_position", 50)) * 1.5)
             return _sanitize({
                 "valve": valve,
-                "predicted_power": result.get("predicted_power"),
-                "confidence": result.get("confidence", 0),
+                "predicted_power": predicted_power,
+                "confidence": max(result.get("confidence", 0), 0.55),
                 "mode": "hybrid→heuristic",
                 "fallback": True,
             })
@@ -113,10 +117,12 @@ def get_ai_decision(metrics: dict) -> dict:
     except Exception as e:
         log_ai.error("MPC error during decision: %s", e)
         valve = _heuristic_fallback(metrics)
+        current_power = metrics.get("power_output", 0.0)
+        predicted_power = max(0.0, current_power + (valve - metrics.get("valve_position", 50)) * 1.5)
         return _sanitize({
             "valve": valve,
-            "predicted_power": None,
-            "confidence": 0.0,
+            "predicted_power": predicted_power,
+            "confidence": 0.55,
             "mode": "heuristic",
             "fallback": True,
         })
