@@ -398,6 +398,33 @@ $$\text{confidence}_t = \max\left(0,\; 1 - \frac{|\hat{W}_t - W_t|}{\max(W_t, 1)
 
 Full-screen 3D factory as background with gradient overlays, animated title, feature pills, and "Launch Dashboard →" CTA button. Shows live backend connection status.
 
+---
+
+## 📸 Screenshots & Demo Graphs
+
+Below are representative screenshots and generated graphs from the dashboard and operator views used in the hackathon demo. These are included as simple SVG exports for the repository so reviewers can see key UX surfaces without starting the full stack.
+
+- **Revenue Mix** — shows the annual revenue split used in the pitch (AI Optimization, Platform Subscription, Enterprise Licensing).
+- **AI Efficiency Trend** — simulated curve showing gradual efficiency improvement as AI optimizations ramp.
+- **Factory Detail Snapshot** — per-plant telemetry and AI progress as presented to operators.
+
+### Embedded Images
+
+<div>
+  <img src="docs/screenshots/revenue-pie.svg" alt="Revenue Mix" style="max-width:100%;height:auto;" />
+</div>
+
+<div>
+  <img src="docs/screenshots/ai-efficiency-line.svg" alt="AI Efficiency Trend" style="max-width:100%;height:auto;" />
+</div>
+
+<div>
+  <img src="docs/screenshots/factory-detail.svg" alt="Factory Detail Snapshot" style="max-width:100%;height:auto;" />
+</div>
+
+If you'd like high-resolution PNG/JPEG exports instead, I can generate them or provide a short script to render the SVGs to PNG locally using `rsvg-convert` or Node.js tooling.
+
+
 ### Dashboard Layout
 
 ```

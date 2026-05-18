@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1000" height="420" viewBox="0 0 1000 420" xmlns="http://www.w3.org/2000/svg">
+  <rect width="100%" height="100%" fill="#021028" />
+  <g transform="translate(24,18)" font-family="sans-serif" fill="#e6eef8">
+    <text x="0" y="20" font-size="18">Factory Detail — Live Metrics Snapshot</text>
+    <g transform="translate(0,36)" font-size="14">
+      <text x="0" y="22">Power Output: 268 kW</text>
+      <text x="0" y="46">Temperature: 421 °C</text>
+      <text x="0" y="70">Pressure: 6.1 bar</text>
+      <text x="0" y="94">Valve Position: 79.6%</text>
+      <text x="320" y="22">Current Efficiency: 90.9%</text>
+      <text x="320" y="46">Monthly Savings: $18,720</text>
+      <text x="320" y="70">Potential Annual Savings: $24,900</text>
+      <rect x="0" y="120" width="640" height="12" rx="6" fill="#0f172a" stroke="#123" />
+      <rect x="0" y="120" width="580" height="12" rx="6" fill="#34d399" />
+      <text x="0" y="156" font-size="12" fill="#9fb6d6">AI Progress: 90%</text>
+    </g>
+  </g>
+</svg>

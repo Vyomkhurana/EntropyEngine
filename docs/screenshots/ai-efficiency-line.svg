@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1000" height="300" viewBox="0 0 1000 300" xmlns="http://www.w3.org/2000/svg">
+  <rect width="100%" height="100%" fill="#07103a" />
+  <g transform="translate(40,20)" font-family="sans-serif">
+    <text x="0" y="16" fill="#e6eef8" font-size="16">AI Optimization: Efficiency Gain Over Time</text>
+    <g transform="translate(0,30)">
+      <path d="M0 200 L50 190 L100 175 L150 160 L200 150 L250 140 L300 130 L350 125 L400 120 L450 118 L500 116 L550 115 L600 114 L650 113 L700 112 L750 111 L800 110" fill="none" stroke="#34d399" stroke-width="3" />
+      <g fill="#e6eef8" font-size="12">
+        <text x="0" y="220">0</text>
+        <text x="800" y="220">30 days</text>
+      </g>
+    </g>
+  </g>
+</svg>
